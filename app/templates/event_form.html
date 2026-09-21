@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}
+Create Event — ResourceHub
+{% endblock %}
+
+{% block content %}
+
+<div class="max-w-3xl mx-auto">
+
+    <!-- Header -->
+
+    <div class="mb-8">
+
+        <a
+            href="{{ url_for('events.events') }}"
+            class="text-sm text-blue-600 hover:text-blue-700"
+        >
+            ← Back to Events
+        </a>
+
+        <h1 class="mt-4 text-3xl font-bold text-gray-900">
+            Create Event
+        </h1>
+
+        <p class="mt-2 text-gray-600">
+            Enter the details of the college event.
+        </p>
+
+    </div>
+
+
+    <!-- Flash messages -->
+
+    {% with messages = get_flashed_messages(
+        with_categories=true
+    ) %}
+
+        {% if messages %}
+
+            <div class="space-y-3 mb-6">
+
+                {% for category, message in messages %}
+
+                    <div
+                        class="p-4 rounded-lg
+                        {% if category == 'success' %}
+                            bg-green-50 text-green-700
+                            border border-green-200
+                        {% else %}
+                            bg-red-50 text-red-700
+                            border border-red-200
+                        {% endif %}"
+                    >
+                        {{ message }}
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+        {% endif %}
+
+    {% endwith %}
+
+
+    <!-- Form -->
+
+    <form
+        method="POST"
+        action="{{ url_for('events.create_event') }}"
+        class="bg-white border border-gray-200
+               rounded-xl p-6 space-y-6"
+    >
+
+        <!-- Event Name -->
+
+        <div>
+
+            <label
+                for="name"
+                class="block text-sm font-medium text-gray-700"
+            >
+                Event Name
+            </label>
+
+            <input
+                type="text"
+                id="name"
+                name="name"
+                required
+                placeholder="e.g. Annual Technical Festival"
+                class="mt-2 w-full px-4 py-3
+                       border border-gray-300
+                       rounded-lg
+                       focus:ring-2 focus:ring-blue-500
+                       focus:border-blue-500"
+            >
+
+        </div>
+
+
+        <!-- Organizer -->
+
+        <div>
+
+            <label
+                for="organizer"
+                class="block text-sm font-medium text-gray-700"
+            >
+                Organizer
+            </label>
+
+            <input
+                type="text"
+                id="organizer"
+                name="organizer"
+                required
+                placeholder="e.g. Computer Department"
+                class="mt-2 w-full px-4 py-3
+                       border border-gray-300
+                       rounded-lg
+                       focus:ring-2 focus:ring-blue-500
+                       focus:border-blue-500"
+            >
+
+        </div>
+
+
+        <!-- Attendance -->
+
+        <div>
+
+            <label
+                for="expected_attendance"
+                class="block text-sm font-medium text-gray-700"
+            >
+                Expected Attendance
+            </label>
+
+            <input
+                type="number"
+                id="expected_attendance"
+                name="expected_attendance"
+                min="1"
+                required
+                placeholder="e.g. 100"
+                class="mt-2 w-full px-4 py-3
+                       border border-gray-300
+                       rounded-lg
+                       focus:ring-2 focus:ring-blue-500
+                       focus:border-blue-500"
+            >
+
+        </div>
+
+
+        <!-- Date and Time -->
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <div>
+
+                <label
+                    for="start_dt"
+                    class="block text-sm font-medium text-gray-700"
+                >
+                    Start Date & Time
+                </label>
+
+                <input
+                    type="datetime-local"
+                    id="start_dt"
+                    name="start_dt"
+                    required
+                    class="mt-2 w-full px-4 py-3
+                           border border-gray-300
+                           rounded-lg
+                           focus:ring-2 focus:ring-blue-500
+                           focus:border-blue-500"
+                >
+
+            </div>
+
+
+            <div>
+
+                <label
+                    for="end_dt"
+                    class="block text-sm font-medium text-gray-700"
+                >
+                    End Date & Time
+                </label>
+
+                <input
+                    type="datetime-local"
+                    id="end_dt"
+                    name="end_dt"
+                    required
+                    class="mt-2 w-full px-4 py-3
+                           border border-gray-300
+                           rounded-lg
+                           focus:ring-2 focus:ring-blue-500
+                           focus:border-blue-500"
+                >
+
+            </div>
+
+        </div>
+
+
+        <!-- Info -->
+
+        <div
+            class="bg-blue-50 border border-blue-200
+                   rounded-lg p-4"
+        >
+
+            <p class="text-sm text-blue-700">
+
+                New events are created with
+                <strong>DRAFT</strong> status.
+
+                They can later be submitted for approval.
+
+            </p>
+
+        </div>
+
+
+        <!-- Buttons -->
+
+        <div
+            class="flex justify-end gap-3
+                   pt-4 border-t border-gray-200"
+        >
+
+            <a
+                href="{{ url_for('events.events') }}"
+                class="px-5 py-3
+                       border border-gray-300
+                       text-gray-700
+                       rounded-lg
+                       hover:bg-gray-50"
+            >
+                Cancel
+            </a>
+
+            <button
+                type="submit"
+                class="px-5 py-3
+                       bg-blue-600 text-white
+                       rounded-lg
+                       hover:bg-blue-700
+                       transition"
+            >
+                Create Event
+            </button>
+
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}

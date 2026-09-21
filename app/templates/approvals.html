@@ -1,237 +1,246 @@
 {% extends "base.html" %}
 
-{% block title %}
-Approvals — ResourceHub
-{% endblock %}
+{% block title %}Approvals - ResourceHub{% endblock %}
 
 {% block content %}
 
-<!-- ========================================================= -->
-<!-- HEADER -->
-<!-- ========================================================= -->
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-<div class="mb-8">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">
+            Resource Approvals
+        </h1>
 
-    <h1 class="text-3xl font-bold text-gray-900">
-        Approvals Queue
-    </h1>
-
-    <p class="mt-2 text-gray-600">
-        Review pending resource requests before allocation.
-    </p>
-
-</div>
+        <p class="mt-2 text-gray-600">
+            Review pending resource requests and approve or reject them.
+        </p>
+    </div>
 
 
-<!-- ========================================================= -->
-<!-- PENDING REQUESTS -->
-<!-- ========================================================= -->
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
 
-{% if requests %}
+        {% if messages %}
 
-<div class="space-y-6">
+            <div class="space-y-3 mb-6">
 
-    {% for request in requests %}
+                {% for category, message in messages %}
 
-    <div class="bg-white rounded-xl border border-gray-200">
+                    <div class="px-4 py-3 rounded-lg
+                        {% if category == 'success' %}
+                            bg-green-100 text-green-800 border border-green-200
+                        {% elif category == 'error' %}
+                            bg-red-100 text-red-800 border border-red-200
+                        {% else %}
+                            bg-blue-100 text-blue-800 border border-blue-200
+                        {% endif %}
+                    ">
+                        {{ message }}
+                    </div>
 
-        <!-- Header -->
-
-        <div class="px-6 py-5 border-b border-gray-200
-                    flex items-center justify-between">
-
-            <div>
-
-                <h2 class="text-lg font-semibold text-gray-900">
-                    Request #{{ request.id }}
-                </h2>
-
-                <p class="mt-1 text-sm text-gray-500">
-                    Submitted
-                    {{ request.created_at.strftime(
-                        "%d %b %Y, %I:%M %p"
-                    ) }}
-                </p>
+                {% endfor %}
 
             </div>
 
-            <span
-                class="px-3 py-1 rounded-full
-                       text-xs font-medium
-                       bg-yellow-100 text-yellow-700"
-            >
-                Pending Review
-            </span>
+        {% endif %}
 
-        </div>
+    {% endwith %}
 
 
-        <!-- Request information -->
+    <!-- Pending Requests -->
 
-        <div class="p-6">
+    {% if requests %}
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="space-y-5">
 
-                <!-- Event -->
+            {% for resource_request in requests %}
 
-                <div>
+                <div class="bg-white rounded-xl shadow-sm
+                            border border-gray-200 p-6">
 
-                    <p class="text-sm text-gray-500">
-                        Event
-                    </p>
+                    <!-- Request Header -->
+                    <div class="flex flex-col lg:flex-row
+                                lg:items-center lg:justify-between gap-4">
 
-                    <p class="mt-1 font-semibold text-gray-900">
-                        {{ request.event.name }}
-                    </p>
+                        <div>
 
-                    <p class="mt-1 text-sm text-gray-600">
-                        Organizer:
-                        {{ request.event.organizer }}
-                    </p>
+                            <div class="flex items-center gap-3">
 
-                    <p class="mt-1 text-sm text-gray-600">
-                        Expected attendance:
-                        {{ request.event.expected_attendance }}
-                    </p>
+                                <h2 class="text-lg font-semibold text-gray-900">
+                                    Request #{{ resource_request.id }}
+                                </h2>
 
-                </div>
+                                <span class="inline-flex items-center px-3 py-1
+                                             rounded-full text-xs font-medium
+                                             bg-yellow-100 text-yellow-800">
+                                    Pending
+                                </span>
 
+                            </div>
 
-                <!-- Requested time -->
+                            {% if resource_request.event %}
 
-                <div>
+                                <p class="mt-2 text-gray-700">
 
-                    <p class="text-sm text-gray-500">
-                        Requested Time
-                    </p>
+                                    <span class="font-medium">
+                                        Event:
+                                    </span>
 
-                    <p class="mt-1 font-semibold text-gray-900">
+                                    {{ resource_request.event.name }}
 
-                        {{ request.requested_start.strftime(
-                            "%d %b %Y, %I:%M %p"
-                        ) }}
+                                </p>
 
-                    </p>
+                            {% endif %}
 
-                    <p class="mt-1 text-sm text-gray-600">
-                        to
-                    </p>
-
-                    <p class="text-sm text-gray-900">
-
-                        {{ request.requested_end.strftime(
-                            "%d %b %Y, %I:%M %p"
-                        ) }}
-
-                    </p>
-
-                </div>
-
-            </div>
+                        </div>
 
 
-            <!-- Requested resources -->
+                        <!-- Action Buttons -->
+                        <div class="flex gap-3">
 
-            <div class="mt-6">
+                            <form
+                                method="POST"
+                                action="{{ url_for('admin.approve_request', request_id=resource_request.id) }}"
+                            >
 
-                <p class="text-sm text-gray-500 mb-3">
-                    Requested Resources
-                </p>
+                                <button
+                                    type="submit"
+                                    class="px-5 py-2.5 bg-green-600 text-white
+                                           font-medium rounded-lg
+                                           hover:bg-green-700 transition"
+                                >
+                                    ✓ Approve
+                                </button>
 
-                <div class="flex flex-wrap gap-3">
+                            </form>
 
-                    {% for item in request.items %}
 
-                    <div
-                        class="px-4 py-2
-                               bg-gray-50
-                               border border-gray-200
-                               rounded-lg"
-                    >
+                            <form
+                                method="POST"
+                                action="{{ url_for('admin.reject_request', request_id=resource_request.id) }}"
+                            >
 
-                        <span class="font-semibold">
-                            {{ item.quantity }} ×
-                        </span>
+                                <button
+                                    type="submit"
+                                    class="px-5 py-2.5 bg-red-600 text-white
+                                           font-medium rounded-lg
+                                           hover:bg-red-700 transition"
+                                >
+                                    ✕ Reject
+                                </button>
 
-                        <span class="text-gray-700">
-                            {{ item.resource_type.value | title }}
-                        </span>
+                            </form>
+
+                        </div>
 
                     </div>
 
-                    {% endfor %}
+
+                    <!-- Request Details -->
+
+                    <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                        <!-- Resources -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+
+                            <p class="text-xs font-semibold text-gray-500
+                                      uppercase tracking-wider">
+                                Resources
+                            </p>
+
+                            <div class="mt-2 space-y-1">
+
+                                {% for item in resource_request.items %}
+
+                                    <p class="text-gray-900">
+
+                                        {{ item.resource_type.value
+                                           .replace('_', ' ')
+                                           .title() }}
+
+                                        <span class="text-gray-500">
+                                            × {{ item.quantity }}
+                                        </span>
+
+                                    </p>
+
+                                {% endfor %}
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- Start -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+
+                            <p class="text-xs font-semibold text-gray-500
+                                      uppercase tracking-wider">
+                                Start
+                            </p>
+
+                            <p class="mt-2 text-gray-900 font-medium">
+                                {{ resource_request.requested_start.strftime('%d %b %Y') }}
+                            </p>
+
+                            <p class="text-sm text-gray-500">
+                                {{ resource_request.requested_start.strftime('%I:%M %p') }}
+                            </p>
+
+                        </div>
+
+
+                        <!-- End -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+
+                            <p class="text-xs font-semibold text-gray-500
+                                      uppercase tracking-wider">
+                                End
+                            </p>
+
+                            <p class="mt-2 text-gray-900 font-medium">
+                                {{ resource_request.requested_end.strftime('%d %b %Y') }}
+                            </p>
+
+                            <p class="text-sm text-gray-500">
+                                {{ resource_request.requested_end.strftime('%I:%M %p') }}
+                            </p>
+
+                        </div>
+
+                    </div>
 
                 </div>
 
-            </div>
-
-
-            <!-- Actions -->
-
-            <div
-                class="mt-6 pt-5
-                       border-t border-gray-200
-                       flex justify-end gap-3"
-            >
-
-                <button
-                    class="px-5 py-2.5
-                           border border-red-200
-                           text-red-600
-                           rounded-lg
-                           hover:bg-red-50
-                           transition"
-                >
-                    Reject
-                </button>
-
-                <button
-                    class="px-5 py-2.5
-                           bg-green-600
-                           text-white
-                           rounded-lg
-                           hover:bg-green-700
-                           transition"
-                >
-                    Approve
-                </button>
-
-            </div>
+            {% endfor %}
 
         </div>
 
-    </div>
 
-    {% endfor %}
+    {% else %}
 
-</div>
+        <!-- Empty State -->
 
-{% else %}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200
+                    p-12 text-center">
 
-<!-- ========================================================= -->
-<!-- EMPTY STATE -->
-<!-- ========================================================= -->
+            <div class="text-5xl mb-4">
+                ✓
+            </div>
 
-<div
-    class="bg-white rounded-xl
-           border border-gray-200
-           p-12 text-center"
->
+            <h2 class="text-xl font-semibold text-gray-900 mb-2">
+                No Pending Requests
+            </h2>
 
-    <div class="text-5xl">
-        ✓
-    </div>
+            <p class="text-gray-600">
+                There are currently no resource requests waiting for approval.
+            </p>
 
-    <h2 class="mt-4 text-xl font-semibold text-gray-900">
-        No pending approvals
-    </h2>
+        </div>
 
-    <p class="mt-2 text-gray-500">
-        All resource requests have been reviewed.
-    </p>
+    {% endif %}
 
 </div>
-
-{% endif %}
 
 {% endblock %}

@@ -102,7 +102,8 @@ Availability — ResourceHub
                     class="relative h-16
                            bg-gray-100
                            rounded-lg
-                           border border-gray-200"
+                           border border-gray-200
+                           overflow-hidden"
                 >
 
                     <!-- Grid lines -->
@@ -110,9 +111,13 @@ Availability — ResourceHub
                     <div class="absolute inset-0 grid grid-cols-5">
 
                         <div class="border-r border-gray-200"></div>
+
                         <div class="border-r border-gray-200"></div>
+
                         <div class="border-r border-gray-200"></div>
+
                         <div class="border-r border-gray-200"></div>
+
                         <div></div>
 
                     </div>
@@ -124,41 +129,58 @@ Availability — ResourceHub
 
                         {% if allocation.resource_id == resource.id %}
 
-                        <div
-                            class="absolute top-2 bottom-2
-                                   left-[20%] right-[20%]
-                                   bg-blue-500
-                                   rounded-lg
-                                   px-3 py-2
-                                   text-white
-                                   text-xs
-                                   shadow-sm"
-                        >
+                            {% set start_minutes = allocation.start_dt.hour * 60 + allocation.start_dt.minute %}
+                            {% set end_minutes = allocation.end_dt.hour * 60 + allocation.end_dt.minute %}
 
-                            <div class="font-semibold">
-                                {{ allocation.event.name }}
+                            {# Timeline is 08:00 (480) to 18:00 (1080) #}
+
+                            {% if start_minutes <= 480 %}
+                                {% set start_percent = 0 %}
+                            {% elif start_minutes >= 1080 %}
+                                {% set start_percent = 100 %}
+                            {% else %}
+                                {% set start_percent = ((start_minutes - 480) / 600 * 100) | round(2) %}
+                            {% endif %}
+
+                            {% if end_minutes >= 1080 %}
+                                {% set end_percent = 100 %}
+                            {% elif end_minutes <= 480 %}
+                                {% set end_percent = 0 %}
+                            {% else %}
+                                {% set end_percent = ((end_minutes - 480) / 600 * 100) | round(2) %}
+                            {% endif %}
+
+                            <div
+                                class="absolute top-2 bottom-2
+                                    bg-blue-500
+                                    rounded-lg
+                                    px-3 py-2
+                                    text-white
+                                    text-xs
+                                    shadow-sm
+                                    overflow-hidden"
+                                style="left: {{ start_percent }}%; width: {{ end_percent - start_percent }}%;"
+                            >
+
+                                <div class="font-semibold truncate">
+                                    {{ allocation.event.name }}
+                                </div>
+
+                                <div class="opacity-90 whitespace-nowrap">
+                                    {{ allocation.start_dt.strftime("%I:%M %p") }}
+                                    -
+                                    {{ allocation.end_dt.strftime("%I:%M %p") }}
+                                </div>
+
                             </div>
-
-                            <div class="opacity-90">
-                                {{ allocation.start_dt.strftime("%I:%M %p") }}
-                                -
-                                {{ allocation.end_dt.strftime("%I:%M %p") }}
-                            </div>
-
-                        </div>
 
                         {% endif %}
 
                     {% endfor %}
 
-                </div>
-
-            </div>
-
-
             <!-- Resource status -->
 
-            <div class="mt-4 flex items-center gap-4 text-sm">
+            <div class="mt-6 flex items-center gap-4 text-sm">
 
                 <div class="flex items-center gap-2">
 
