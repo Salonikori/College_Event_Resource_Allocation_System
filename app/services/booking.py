@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from app.models import (
     Allocation,
     AllocationStatus,
@@ -20,22 +22,47 @@ def find_conflicts(
 ):
     """
     Find active allocations that overlap with the requested
-    time period for a resource.
+    time period, including the resource's buffer time.
+
+    Buffer is calculated in Python before building the query.
+    This avoids SQLite DateTime + timedelta issues.
     """
 
-    query = session.query(Allocation).filter(
+    resource = session.get(
+        Resource,
+        resource_id
+    )
+
+    if resource is None:
+        return []
+
+    buffer = timedelta(
+        minutes=resource.buffer_minutes or 0
+    )
+
+    # Expand the requested period by the resource buffer.
+    buffered_start = start - buffer
+    buffered_end = end + buffer
+
+    query = session.query(
+        Allocation
+    ).filter(
         Allocation.resource_id == resource_id,
+
         Allocation.status.in_(
             [
                 AllocationStatus.ALLOCATED,
                 AllocationStatus.APPROVED,
             ]
         ),
-        Allocation.start_dt < end,
-        Allocation.end_dt > start,
+
+        Allocation.start_dt < buffered_end,
+
+        Allocation.end_dt > buffered_start,
     )
 
     if exclude_alloc_id is not None:
+
         query = query.filter(
             Allocation.id != exclude_alloc_id
         )
@@ -54,9 +81,9 @@ def pick_resources(
 
     required_quantity = request_item.quantity
 
-    # --------------------------------------------------------
+    # --------------------------------------------------
     # Specific resource requested
-    # --------------------------------------------------------
+    # --------------------------------------------------
 
     if request_item.specific_resource_id is not None:
 
@@ -88,26 +115,28 @@ def pick_resources(
         )
 
         if conflicts:
+
             raise AllocationError(
-                f"{resource.name} is already booked."
+                f"{resource.name} is already booked "
+                f"or is within its required buffer period."
             )
 
         return [resource]
 
-    # --------------------------------------------------------
-    # Find active resources of required type
-    # --------------------------------------------------------
+    # --------------------------------------------------
+    # Automatically select suitable resources
+    # --------------------------------------------------
 
-    resources = session.query(Resource).filter(
-        Resource.type == request_item.resource_type,
-        Resource.is_active.is_(True),
-    ).all()
+    resources = (
+        session.query(Resource)
+        .filter(
+            Resource.type == request_item.resource_type,
+            Resource.is_active.is_(True),
+        )
+        .all()
+    )
 
     selected_resources = []
-
-    # --------------------------------------------------------
-    # Check availability
-    # --------------------------------------------------------
 
     for resource in resources:
 
@@ -121,16 +150,19 @@ def pick_resources(
         if conflicts:
             continue
 
-        selected_resources.append(resource)
+        selected_resources.append(
+            resource
+        )
 
         if len(selected_resources) == required_quantity:
             break
 
-    # --------------------------------------------------------
+    # --------------------------------------------------
     # Not enough resources
-    # --------------------------------------------------------
+    # --------------------------------------------------
 
     if len(selected_resources) < required_quantity:
+
         raise AllocationError(
             (
                 f"Could not allocate {required_quantity} "
@@ -142,7 +174,10 @@ def pick_resources(
     return selected_resources
 
 
-def allocate_request(session, request):
+def allocate_request(
+    session,
+    request,
+):
     """
     Atomically allocate all resources required by a request.
 
@@ -153,18 +188,18 @@ def allocate_request(session, request):
     rolled back.
     """
 
-    # --------------------------------------------------------
-    # Get the real SQLAlchemy Session.
-    # --------------------------------------------------------
+    # --------------------------------------------------
+    # Get the actual SQLAlchemy Session
+    # --------------------------------------------------
 
     if hasattr(session, "in_transaction"):
         actual_session = session
     else:
         actual_session = session()
 
-    # --------------------------------------------------------
-    # Save request information BEFORE any transaction work.
-    # --------------------------------------------------------
+    # --------------------------------------------------
+    # Save request information before transaction work
+    # --------------------------------------------------
 
     request_id = request.id
     event_id = request.event_id
@@ -173,23 +208,15 @@ def allocate_request(session, request):
 
     try:
 
-        # ----------------------------------------------------
-        # Flush pending objects.
-        #
-        # IMPORTANT:
-        # Do NOT rollback here because the request may only
-        # have been flushed, not committed yet.
-        # ----------------------------------------------------
+        # --------------------------------------------------
+        # Flush pending ORM changes
+        # --------------------------------------------------
 
         actual_session.flush()
 
-        # ----------------------------------------------------
-        # Start SQLite write transaction only when there is
-        # no transaction already active.
-        #
-        # If the caller already has a transaction, the
-        # allocation becomes part of that same transaction.
-        # ----------------------------------------------------
+        # --------------------------------------------------
+        # Start SQLite write transaction when necessary
+        # --------------------------------------------------
 
         if not actual_session.in_transaction():
 
@@ -199,35 +226,43 @@ def allocate_request(session, request):
                 "BEGIN IMMEDIATE"
             )
 
-        # ----------------------------------------------------
-        # Reload the request using its known ID.
-        # ----------------------------------------------------
+        # --------------------------------------------------
+        # Reload request from database
+        # --------------------------------------------------
 
-        db_request = actual_session.query(
-            ResourceRequest
-        ).filter(
-            ResourceRequest.id == request_id
-        ).first()
+        db_request = (
+            actual_session.query(
+                ResourceRequest
+            )
+            .filter(
+                ResourceRequest.id == request_id
+            )
+            .first()
+        )
 
         if db_request is None:
+
             raise AllocationError(
                 "Resource request does not exist."
             )
 
-        # ----------------------------------------------------
-        # Load request items.
-        # ----------------------------------------------------
+        # --------------------------------------------------
+        # Get request items
+        # --------------------------------------------------
 
-        request_items = list(db_request.items)
+        request_items = list(
+            db_request.items
+        )
 
         if not request_items:
+
             raise AllocationError(
                 "Resource request contains no items."
             )
 
-        # ----------------------------------------------------
-        # Validate EVERYTHING first.
-        # ----------------------------------------------------
+        # --------------------------------------------------
+        # Validate ALL resources first
+        # --------------------------------------------------
 
         planned_resources = []
 
@@ -248,9 +283,9 @@ def allocate_request(session, request):
                     )
                 )
 
-        # ----------------------------------------------------
-        # Create allocations only after all validation passes.
-        # ----------------------------------------------------
+        # --------------------------------------------------
+        # Create allocations only after validation succeeds
+        # --------------------------------------------------
 
         allocations = []
 
@@ -265,22 +300,30 @@ def allocate_request(session, request):
                 status=AllocationStatus.ALLOCATED,
             )
 
-            actual_session.add(allocation)
+            actual_session.add(
+                allocation
+            )
 
-            allocations.append(allocation)
+            allocations.append(
+                allocation
+            )
 
-        # ----------------------------------------------------
-        # Commit everything together.
-        # ----------------------------------------------------
+        # --------------------------------------------------
+        # Commit everything atomically
+        # --------------------------------------------------
 
         actual_session.commit()
 
         return allocations
 
     except AllocationError:
+
         actual_session.rollback()
+
         raise
 
     except Exception:
+
         actual_session.rollback()
+
         raise

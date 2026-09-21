@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 
 {% block title %}Approvals - ResourceHub{% endblock %}
@@ -97,11 +98,29 @@
 
 
                         <!-- Action Buttons -->
-                        <div class="flex gap-3">
+                        <div class="flex flex-wrap gap-3">
 
+                            <!-- Alternatives -->
+                            <a
+                                href="{{ url_for(
+                                    'requests.alternatives',
+                                    request_id=resource_request.id
+                                ) }}"
+                                class="px-5 py-2.5 bg-blue-600 text-white
+                                       font-medium rounded-lg
+                                       hover:bg-blue-700 transition"
+                            >
+                                View Alternatives
+                            </a>
+
+
+                            <!-- Approve -->
                             <form
                                 method="POST"
-                                action="{{ url_for('admin.approve_request', request_id=resource_request.id) }}"
+                                action="{{ url_for(
+                                    'admin.approve_request',
+                                    request_id=resource_request.id
+                                ) }}"
                             >
 
                                 <button
@@ -116,9 +135,13 @@
                             </form>
 
 
+                            <!-- Reject -->
                             <form
                                 method="POST"
-                                action="{{ url_for('admin.reject_request', request_id=resource_request.id) }}"
+                                action="{{ url_for(
+                                    'admin.reject_request',
+                                    request_id=resource_request.id
+                                ) }}"
                             >
 
                                 <button

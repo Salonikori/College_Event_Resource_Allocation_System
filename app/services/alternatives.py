@@ -1,4 +1,3 @@
-# app/services/alternatives.py
 
 from datetime import timedelta
 from math import inf
@@ -19,10 +18,12 @@ def find_alternatives(
 
     Selection criteria:
     1. Resource must be active.
-    2. Resource type must match the requested type.
+    2. Resource type must match.
     3. Resource capacity must be sufficient.
-    4. Resource must not have a booking conflict.
+    4. Resource must be available, including buffer time.
     5. Prefer the smallest suitable resource.
+    6. Prefer shorter buffer times when capacity is otherwise
+       equivalent.
 
     Returns:
         List of dictionaries containing resource, score and reason.
@@ -55,6 +56,9 @@ def find_alternatives(
 
         # ---------------------------------------------------------
         # 2. Check booking conflicts
+        #
+        # find_conflicts() already accounts for the resource's
+        # buffer_minutes.
         # ---------------------------------------------------------
 
         conflicts = find_conflicts(
@@ -71,34 +75,52 @@ def find_alternatives(
         # 3. Calculate best-fit score
         # ---------------------------------------------------------
 
-        # Smaller unused capacity = better match.
+        if capacity == inf:
+            unused_capacity = inf
+        else:
+            unused_capacity = (
+                capacity - event.expected_attendance
+            )
+
+        # Smaller unused capacity is preferred.
         #
-        # Example:
-        # Event attendance = 30
-        #
-        # Resource A = 40 capacity -> score 10
-        # Resource B = 100 capacity -> score 70
-        #
-        # Resource A will be preferred.
+        # Buffer is used as a secondary factor.
+        if unused_capacity == inf:
+            score = (
+                inf,
+                resource.buffer_minutes or 0,
+            )
+        else:
+            score = (
+                unused_capacity,
+                resource.buffer_minutes or 0,
+            )
+
+        # ---------------------------------------------------------
+        # 4. Build explanation
+        # ---------------------------------------------------------
 
         if capacity == inf:
-            score = inf
+            capacity_text = "unlimited capacity"
         else:
-            score = capacity - event.expected_attendance
+            capacity_text = f"capacity {capacity}"
+
+        buffer_minutes = resource.buffer_minutes or 0
 
         candidates.append(
             {
                 "resource": resource,
                 "score": score,
                 "reason": (
-                    f"{resource.name} is available and "
-                    f"can accommodate {event.expected_attendance} people."
+                    f"{resource.name} is available, has "
+                    f"{capacity_text}, and requires a "
+                    f"{buffer_minutes}-minute buffer."
                 ),
             }
         )
 
     # -------------------------------------------------------------
-    # 4. Sort by best fit
+    # 5. Sort by best fit
     # -------------------------------------------------------------
 
     candidates.sort(
@@ -342,3 +364,4 @@ def get_resource_alternatives(
         "exact_time": [],
         "nearby_time": nearby_time,
     }
+
