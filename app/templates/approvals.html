@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block title %}
+Approvals — ResourceHub
+{% endblock %}
+
+{% block content %}
+
+<!-- ========================================================= -->
+<!-- HEADER -->
+<!-- ========================================================= -->
+
+<div class="mb-8">
+
+    <h1 class="text-3xl font-bold text-gray-900">
+        Approvals Queue
+    </h1>
+
+    <p class="mt-2 text-gray-600">
+        Review pending resource requests before allocation.
+    </p>
+
+</div>
+
+
+<!-- ========================================================= -->
+<!-- PENDING REQUESTS -->
+<!-- ========================================================= -->
+
+{% if requests %}
+
+<div class="space-y-6">
+
+    {% for request in requests %}
+
+    <div class="bg-white rounded-xl border border-gray-200">
+
+        <!-- Header -->
+
+        <div class="px-6 py-5 border-b border-gray-200
+                    flex items-center justify-between">
+
+            <div>
+
+                <h2 class="text-lg font-semibold text-gray-900">
+                    Request #{{ request.id }}
+                </h2>
+
+                <p class="mt-1 text-sm text-gray-500">
+                    Submitted
+                    {{ request.created_at.strftime(
+                        "%d %b %Y, %I:%M %p"
+                    ) }}
+                </p>
+
+            </div>
+
+            <span
+                class="px-3 py-1 rounded-full
+                       text-xs font-medium
+                       bg-yellow-100 text-yellow-700"
+            >
+                Pending Review
+            </span>
+
+        </div>
+
+
+        <!-- Request information -->
+
+        <div class="p-6">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                <!-- Event -->
+
+                <div>
+
+                    <p class="text-sm text-gray-500">
+                        Event
+                    </p>
+
+                    <p class="mt-1 font-semibold text-gray-900">
+                        {{ request.event.name }}
+                    </p>
+
+                    <p class="mt-1 text-sm text-gray-600">
+                        Organizer:
+                        {{ request.event.organizer }}
+                    </p>
+
+                    <p class="mt-1 text-sm text-gray-600">
+                        Expected attendance:
+                        {{ request.event.expected_attendance }}
+                    </p>
+
+                </div>
+
+
+                <!-- Requested time -->
+
+                <div>
+
+                    <p class="text-sm text-gray-500">
+                        Requested Time
+                    </p>
+
+                    <p class="mt-1 font-semibold text-gray-900">
+
+                        {{ request.requested_start.strftime(
+                            "%d %b %Y, %I:%M %p"
+                        ) }}
+
+                    </p>
+
+                    <p class="mt-1 text-sm text-gray-600">
+                        to
+                    </p>
+
+                    <p class="text-sm text-gray-900">
+
+                        {{ request.requested_end.strftime(
+                            "%d %b %Y, %I:%M %p"
+                        ) }}
+
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <!-- Requested resources -->
+
+            <div class="mt-6">
+
+                <p class="text-sm text-gray-500 mb-3">
+                    Requested Resources
+                </p>
+
+                <div class="flex flex-wrap gap-3">
+
+                    {% for item in request.items %}
+
+                    <div
+                        class="px-4 py-2
+                               bg-gray-50
+                               border border-gray-200
+                               rounded-lg"
+                    >
+
+                        <span class="font-semibold">
+                            {{ item.quantity }} ×
+                        </span>
+
+                        <span class="text-gray-700">
+                            {{ item.resource_type.value | title }}
+                        </span>
+
+                    </div>
+
+                    {% endfor %}
+
+                </div>
+
+            </div>
+
+
+            <!-- Actions -->
+
+            <div
+                class="mt-6 pt-5
+                       border-t border-gray-200
+                       flex justify-end gap-3"
+            >
+
+                <button
+                    class="px-5 py-2.5
+                           border border-red-200
+                           text-red-600
+                           rounded-lg
+                           hover:bg-red-50
+                           transition"
+                >
+                    Reject
+                </button>
+
+                <button
+                    class="px-5 py-2.5
+                           bg-green-600
+                           text-white
+                           rounded-lg
+                           hover:bg-green-700
+                           transition"
+                >
+                    Approve
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    {% endfor %}
+
+</div>
+
+{% else %}
+
+<!-- ========================================================= -->
+<!-- EMPTY STATE -->
+<!-- ========================================================= -->
+
+<div
+    class="bg-white rounded-xl
+           border border-gray-200
+           p-12 text-center"
+>
+
+    <div class="text-5xl">
+        ✓
+    </div>
+
+    <h2 class="mt-4 text-xl font-semibold text-gray-900">
+        No pending approvals
+    </h2>
+
+    <p class="mt-2 text-gray-500">
+        All resource requests have been reviewed.
+    </p>
+
+</div>
+
+{% endif %}
+
+{% endblock %}

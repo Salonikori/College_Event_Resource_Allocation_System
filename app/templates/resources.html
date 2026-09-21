@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}
+Resources — ResourceHub
+{% endblock %}
+
+{% block content %}
+
+<div class="flex items-center justify-between mb-8">
+
+    <div>
+        <h1 class="text-3xl font-bold text-gray-900">
+            Resources
+        </h1>
+
+        <p class="mt-2 text-gray-600">
+            Manage halls, classrooms, equipment and other
+            college resources.
+        </p>
+    </div>
+
+    <button
+        class="px-5 py-3
+               bg-blue-600 text-white
+               rounded-lg
+               hover:bg-blue-700
+               transition"
+    >
+        + Add Resource
+    </button>
+
+</div>
+
+
+<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+
+    {% if resources %}
+
+    <div class="overflow-x-auto">
+
+        <table class="w-full">
+
+            <thead class="bg-gray-50 border-b border-gray-200">
+
+                <tr>
+
+                    <th class="px-6 py-4 text-left text-sm font-semibold">
+                        Resource
+                    </th>
+
+                    <th class="px-6 py-4 text-left text-sm font-semibold">
+                        Type
+                    </th>
+
+                    <th class="px-6 py-4 text-left text-sm font-semibold">
+                        Capacity
+                    </th>
+
+                    <th class="px-6 py-4 text-left text-sm font-semibold">
+                        Buffer
+                    </th>
+
+                    <th class="px-6 py-4 text-left text-sm font-semibold">
+                        Status
+                    </th>
+
+                </tr>
+
+            </thead>
+
+            <tbody class="divide-y divide-gray-200">
+
+                {% for resource in resources %}
+
+                <tr class="hover:bg-gray-50">
+
+                    <td class="px-6 py-4 font-medium">
+                        {{ resource.name }}
+                    </td>
+
+                    <td class="px-6 py-4 text-gray-600">
+                        {{ resource.type.value | title }}
+                    </td>
+
+                    <td class="px-6 py-4 text-gray-600">
+                        {% if resource.capacity %}
+                            {{ resource.capacity }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+
+                    <td class="px-6 py-4 text-gray-600">
+                        {{ resource.buffer_minutes }} min
+                    </td>
+
+                    <td class="px-6 py-4">
+
+                        {% if resource.is_active %}
+
+                        <span
+                            class="px-3 py-1
+                                   rounded-full
+                                   text-xs font-medium
+                                   bg-green-100 text-green-700"
+                        >
+                            Active
+                        </span>
+
+                        {% else %}
+
+                        <span
+                            class="px-3 py-1
+                                   rounded-full
+                                   text-xs font-medium
+                                   bg-gray-100 text-gray-700"
+                        >
+                            Inactive
+                        </span>
+
+                        {% endif %}
+
+                    </td>
+
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+    {% else %}
+
+    <div class="p-12 text-center">
+
+        <div class="text-5xl">
+            🏢
+        </div>
+
+        <h2 class="mt-4 text-xl font-semibold">
+            No resources yet
+        </h2>
+
+        <p class="mt-2 text-gray-500">
+            Add halls, classrooms, equipment or other resources
+            to start allocating them.
+        </p>
+
+    </div>
+
+    {% endif %}
+
+</div>
+
+{% endblock %}

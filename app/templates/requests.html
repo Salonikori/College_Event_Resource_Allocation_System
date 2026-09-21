@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}
+Resource Requests — ResourceHub
+{% endblock %}
+
+{% block content %}
+
+<!-- ========================================================= -->
+<!-- HEADER -->
+<!-- ========================================================= -->
+
+<div class="flex items-center justify-between mb-8">
+
+    <div>
+
+        <h1 class="text-3xl font-bold text-gray-900">
+            Resource Requests
+        </h1>
+
+        <p class="mt-2 text-gray-600">
+            View and manage resource requests submitted
+            for college events.
+        </p>
+
+    </div>
+
+    <button
+        class="px-5 py-3
+               bg-blue-600 text-white
+               rounded-lg
+               hover:bg-blue-700
+               transition"
+    >
+        + New Request
+    </button>
+
+</div>
+
+
+<!-- ========================================================= -->
+<!-- REQUEST LIST -->
+<!-- ========================================================= -->
+
+<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+
+    {% if requests %}
+
+    <div class="overflow-x-auto">
+
+        <table class="w-full">
+
+            <thead class="bg-gray-50 border-b border-gray-200">
+
+                <tr>
+
+                    <th class="px-6 py-4 text-left text-sm font-semibold">
+                        Request
+                    </th>
+
+                    <th class="px-6 py-4 text-left text-sm font-semibold">
+                        Event
+                    </th>
+
+                    <th class="px-6 py-4 text-left text-sm font-semibold">
+                        Requested Start
+                    </th>
+
+                    <th class="px-6 py-4 text-left text-sm font-semibold">
+                        Requested End
+                    </th>
+
+                    <th class="px-6 py-4 text-left text-sm font-semibold">
+                        Resources
+                    </th>
+
+                    <th class="px-6 py-4 text-left text-sm font-semibold">
+                        Status
+                    </th>
+
+                </tr>
+
+            </thead>
+
+            <tbody class="divide-y divide-gray-200">
+
+                {% for request in requests %}
+
+                <tr class="hover:bg-gray-50">
+
+                    <!-- Request ID -->
+
+                    <td class="px-6 py-4 font-medium">
+                        #{{ request.id }}
+                    </td>
+
+
+                    <!-- Event -->
+
+                    <td class="px-6 py-4">
+
+                        <div class="font-medium text-gray-900">
+                            {{ request.event.name }}
+                        </div>
+
+                        <div class="text-sm text-gray-500">
+                            {{ request.event.organizer }}
+                        </div>
+
+                    </td>
+
+
+                    <!-- Start -->
+
+                    <td class="px-6 py-4 text-gray-600">
+
+                        {{ request.requested_start.strftime(
+                            "%d %b %Y, %I:%M %p"
+                        ) }}
+
+                    </td>
+
+
+                    <!-- End -->
+
+                    <td class="px-6 py-4 text-gray-600">
+
+                        {{ request.requested_end.strftime(
+                            "%d %b %Y, %I:%M %p"
+                        ) }}
+
+                    </td>
+
+
+                    <!-- Resource items -->
+
+                    <td class="px-6 py-4">
+
+                        <div class="space-y-1">
+
+                            {% for item in request.items %}
+
+                            <div class="text-sm">
+
+                                <span class="font-medium">
+                                    {{ item.quantity }} ×
+                                </span>
+
+                                {{ item.resource_type.value | title }}
+
+                            </div>
+
+                            {% endfor %}
+
+                        </div>
+
+                    </td>
+
+
+                    <!-- Status -->
+
+                    <td class="px-6 py-4">
+
+                        {% if request.status.value == "APPROVED" %}
+
+                        <span
+                            class="px-3 py-1 rounded-full
+                                   text-xs font-medium
+                                   bg-green-100 text-green-700"
+                        >
+                            Approved
+                        </span>
+
+                        {% elif request.status.value == "PENDING" %}
+
+                        <span
+                            class="px-3 py-1 rounded-full
+                                   text-xs font-medium
+                                   bg-yellow-100 text-yellow-700"
+                        >
+                            Pending
+                        </span>
+
+                        {% elif request.status.value == "REJECTED" %}
+
+                        <span
+                            class="px-3 py-1 rounded-full
+                                   text-xs font-medium
+                                   bg-red-100 text-red-700"
+                        >
+                            Rejected
+                        </span>
+
+                        {% elif request.status.value == "CANCELLED" %}
+
+                        <span
+                            class="px-3 py-1 rounded-full
+                                   text-xs font-medium
+                                   bg-gray-100 text-gray-700"
+                        >
+                            Cancelled
+                        </span>
+
+                        {% else %}
+
+                        <span
+                            class="px-3 py-1 rounded-full
+                                   text-xs font-medium
+                                   bg-blue-100 text-blue-700"
+                        >
+                            {{ request.status.value | title }}
+                        </span>
+
+                        {% endif %}
+
+                    </td>
+
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+    {% else %}
+
+    <!-- ===================================================== -->
+    <!-- EMPTY STATE -->
+    <!-- ===================================================== -->
+
+    <div class="p-12 text-center">
+
+        <div class="text-5xl">
+            📋
+        </div>
+
+        <h2 class="mt-4 text-xl font-semibold text-gray-900">
+            No resource requests yet
+        </h2>
+
+        <p class="mt-2 text-gray-500">
+            Create a request to allocate resources
+            for an event.
+        </p>
+
+    </div>
+
+    {% endif %}
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}
+Events — ResourceHub
+{% endblock %}
+
+
+{% block content %}
+
+<div class="flex items-center justify-between mb-8">
+
+    <div>
+
+        <h1 class="text-3xl font-bold text-gray-900">
+            Events
+        </h1>
+
+        <p class="mt-2 text-gray-600">
+            View and manage college events.
+        </p>
+
+    </div>
+
+    <button
+        class="px-5 py-3
+               bg-blue-600 text-white
+               rounded-lg
+               hover:bg-blue-700
+               transition"
+    >
+        + Create Event
+    </button>
+
+</div>
+
+
+<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+
+    {% if events %}
+
+    <div class="overflow-x-auto">
+
+        <table class="w-full">
+
+            <thead class="bg-gray-50 border-b border-gray-200">
+
+                <tr>
+
+                    <th class="px-6 py-4 text-left text-sm font-semibold">
+                        Event
+                    </th>
+
+                    <th class="px-6 py-4 text-left text-sm font-semibold">
+                        Organizer
+                    </th>
+
+                    <th class="px-6 py-4 text-left text-sm font-semibold">
+                        Attendance
+                    </th>
+
+                    <th class="px-6 py-4 text-left text-sm font-semibold">
+                        Start
+                    </th>
+
+                    <th class="px-6 py-4 text-left text-sm font-semibold">
+                        End
+                    </th>
+
+                    <th class="px-6 py-4 text-left text-sm font-semibold">
+                        Status
+                    </th>
+
+                </tr>
+
+            </thead>
+
+            <tbody class="divide-y divide-gray-200">
+
+                {% for event in events %}
+
+                <tr class="hover:bg-gray-50">
+
+                    <td class="px-6 py-4 font-medium">
+                        {{ event.name }}
+                    </td>
+
+                    <td class="px-6 py-4 text-gray-600">
+                        {{ event.organizer }}
+                    </td>
+
+                    <td class="px-6 py-4">
+                        {{ event.expected_attendance }}
+                    </td>
+
+                    <td class="px-6 py-4 text-gray-600">
+                        {{ event.start_dt.strftime("%d %b %Y, %I:%M %p") }}
+                    </td>
+
+                    <td class="px-6 py-4 text-gray-600">
+                        {{ event.end_dt.strftime("%d %b %Y, %I:%M %p") }}
+                    </td>
+
+                    <td class="px-6 py-4">
+
+                        {% if event.status.value == "APPROVED" %}
+
+                        <span
+                            class="px-3 py-1
+                                   rounded-full
+                                   text-xs font-medium
+                                   bg-green-100 text-green-700"
+                        >
+                            Approved
+                        </span>
+
+                        {% elif event.status.value == "PENDING" %}
+
+                        <span
+                            class="px-3 py-1
+                                   rounded-full
+                                   text-xs font-medium
+                                   bg-yellow-100 text-yellow-700"
+                        >
+                            Pending
+                        </span>
+
+                        {% elif event.status.value == "REJECTED" %}
+
+                        <span
+                            class="px-3 py-1
+                                   rounded-full
+                                   text-xs font-medium
+                                   bg-red-100 text-red-700"
+                        >
+                            Rejected
+                        </span>
+
+                        {% elif event.status.value == "CANCELLED" %}
+
+                        <span
+                            class="px-3 py-1
+                                   rounded-full
+                                   text-xs font-medium
+                                   bg-gray-100 text-gray-700"
+                        >
+                            Cancelled
+                        </span>
+
+                        {% else %}
+
+                        <span
+                            class="px-3 py-1
+                                   rounded-full
+                                   text-xs font-medium
+                                   bg-blue-100 text-blue-700"
+                        >
+                            {{ event.status.value | title }}
+                        </span>
+
+                        {% endif %}
+
+                    </td>
+
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+    {% else %}
+
+    <div class="p-12 text-center">
+
+        <div class="text-5xl">
+            📅
+        </div>
+
+        <h2 class="mt-4 text-xl font-semibold">
+            No events yet
+        </h2>
+
+        <p class="mt-2 text-gray-500">
+            Create your first college event to get started.
+        </p>
+
+    </div>
+
+    {% endif %}
+
+</div>
+
+{% endblock %}

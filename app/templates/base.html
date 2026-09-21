@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        {% block title %}
+        ResourceHub
+        {% endblock %}
+    </title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    {% block head %}
+    {% endblock %}
+</head>
+
+<body class="bg-gray-50 text-gray-900">
+
+    <!-- ===================================================== -->
+    <!-- NAVIGATION -->
+    <!-- ===================================================== -->
+
+    <nav class="bg-white border-b border-gray-200">
+
+        <div class="max-w-7xl mx-auto px-6">
+
+            <div class="h-16 flex items-center justify-between">
+
+                <!-- Logo -->
+
+                <a
+                    href="/"
+                    class="text-xl font-bold text-blue-600"
+                >
+                    ResourceHub
+                </a>
+
+
+                <!-- Navigation links -->
+
+                <div class="flex items-center gap-6">
+
+                    <a
+                        href="/"
+                        class="text-gray-600 hover:text-blue-600"
+                    >
+                        Dashboard
+                    </a>
+
+                    <a
+                        href="/events"
+                        class="text-gray-600 hover:text-blue-600"
+                    >
+                        Events
+                    </a>
+
+                    <a
+                        href="/resources"
+                        class="text-gray-600 hover:text-blue-600"
+                    >
+                        Resources
+                    </a>
+
+                    <a
+                        href="/requests"
+                        class="text-gray-600 hover:text-blue-600"
+                    >
+                        Requests
+                    </a>
+
+                    <a
+                        href="/availability"
+                        class="text-gray-600 hover:text-blue-600"
+                    >
+                        Availability
+                    </a>
+
+                    <a
+                        href="/approvals"
+                        class="text-gray-600 hover:text-blue-600"
+                    >
+                        Approvals
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </nav>
+
+
+    <!-- ===================================================== -->
+    <!-- MAIN CONTENT -->
+    <!-- ===================================================== -->
+
+    <main class="max-w-7xl mx-auto px-6 py-8">
+
+        {% block content %}
+        {% endblock %}
+
+    </main>
+
+
+    <!-- ===================================================== -->
+    <!-- FOOTER -->
+    <!-- ===================================================== -->
+
+    <footer class="border-t border-gray-200 bg-white mt-12">
+
+        <div
+            class="max-w-7xl mx-auto px-6 py-6
+                   text-sm text-gray-500"
+        >
+            ResourceHub — College Event Resource Allocation System
+        </div>
+
+    </footer>
+
+
+    {% block scripts %}
+    {% endblock %}
+
+</body>
+
+</html>

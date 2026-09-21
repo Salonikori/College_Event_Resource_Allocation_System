@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}
+Dashboard — ResourceHub
+{% endblock %}
+
+
+{% block content %}
+
+<!-- ========================================================= -->
+<!-- HEADER -->
+<!-- ========================================================= -->
+
+<div class="mb-8">
+
+    <h1 class="text-3xl font-bold text-gray-900">
+        Resource Allocation Dashboard
+    </h1>
+
+    <p class="mt-2 text-gray-600">
+        Manage college events, resources and bookings
+        from one place.
+    </p>
+
+</div>
+
+
+<!-- ========================================================= -->
+<!-- STAT CARDS -->
+<!-- ========================================================= -->
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+    <!-- Events -->
+
+    <div class="bg-white rounded-xl border border-gray-200 p-6">
+
+        <p class="text-sm text-gray-500">
+            Total Events
+        </p>
+
+        <p class="mt-2 text-3xl font-bold text-gray-900">
+            0
+        </p>
+
+    </div>
+
+
+    <!-- Resources -->
+
+    <div class="bg-white rounded-xl border border-gray-200 p-6">
+
+        <p class="text-sm text-gray-500">
+            Total Resources
+        </p>
+
+        <p class="mt-2 text-3xl font-bold text-gray-900">
+            0
+        </p>
+
+    </div>
+
+
+    <!-- Pending Requests -->
+
+    <div class="bg-white rounded-xl border border-gray-200 p-6">
+
+        <p class="text-sm text-gray-500">
+            Pending Requests
+        </p>
+
+        <p class="mt-2 text-3xl font-bold text-gray-900">
+            0
+        </p>
+
+    </div>
+
+
+    <!-- Allocations -->
+
+    <div class="bg-white rounded-xl border border-gray-200 p-6">
+
+        <p class="text-sm text-gray-500">
+            Active Allocations
+        </p>
+
+        <p class="mt-2 text-3xl font-bold text-gray-900">
+            0
+        </p>
+
+    </div>
+
+</div>
+
+
+<!-- ========================================================= -->
+<!-- QUICK ACTIONS -->
+<!-- ========================================================= -->
+
+<div class="mt-10">
+
+    <h2 class="text-xl font-semibold text-gray-900">
+        Quick Actions
+    </h2>
+
+    <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+
+        <a
+            href="/events"
+            class="bg-white border border-gray-200
+                   rounded-xl p-5
+                   hover:border-blue-400
+                   hover:shadow-sm
+                   transition"
+        >
+
+            <h3 class="font-semibold text-gray-900">
+                Manage Events
+            </h3>
+
+            <p class="mt-1 text-sm text-gray-500">
+                Create and manage college events.
+            </p>
+
+        </a>
+
+
+        <a
+            href="/resources"
+            class="bg-white border border-gray-200
+                   rounded-xl p-5
+                   hover:border-blue-400
+                   hover:shadow-sm
+                   transition"
+        >
+
+            <h3 class="font-semibold text-gray-900">
+                Manage Resources
+            </h3>
+
+            <p class="mt-1 text-sm text-gray-500">
+                View halls, classrooms, equipment
+                and other resources.
+            </p>
+
+        </a>
+
+
+        <a
+            href="/requests"
+            class="bg-white border border-gray-200
+                   rounded-xl p-5
+                   hover:border-blue-400
+                   hover:shadow-sm
+                   transition"
+        >
+
+            <h3 class="font-semibold text-gray-900">
+                New Resource Request
+            </h3>
+
+            <p class="mt-1 text-sm text-gray-500">
+                Request resources for an event.
+            </p>
+
+        </a>
+
+    </div>
+
+</div>
+
+{% endblock %}
