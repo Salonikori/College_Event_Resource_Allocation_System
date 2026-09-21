@@ -40,7 +40,7 @@ Dashboard — ResourceHub
         </p>
 
         <p class="mt-2 text-3xl font-bold text-gray-900">
-            0
+            {{ total_events }}
         </p>
 
     </div>
@@ -55,7 +55,7 @@ Dashboard — ResourceHub
         </p>
 
         <p class="mt-2 text-3xl font-bold text-gray-900">
-            0
+            {{ total_resources }}
         </p>
 
     </div>
@@ -70,7 +70,7 @@ Dashboard — ResourceHub
         </p>
 
         <p class="mt-2 text-3xl font-bold text-gray-900">
-            0
+            {{ pending_requests }}
         </p>
 
     </div>
@@ -85,7 +85,7 @@ Dashboard — ResourceHub
         </p>
 
         <p class="mt-2 text-3xl font-bold text-gray-900">
-            0
+            {{ active_allocations }}
         </p>
 
     </div>
@@ -103,7 +103,11 @@ Dashboard — ResourceHub
         Quick Actions
     </h2>
 
+
     <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+
+
+        <!-- Manage Events -->
 
         <a
             href="/events"
@@ -125,6 +129,8 @@ Dashboard — ResourceHub
         </a>
 
 
+        <!-- Manage Resources -->
+
         <a
             href="/resources"
             class="bg-white border border-gray-200
@@ -145,6 +151,8 @@ Dashboard — ResourceHub
 
         </a>
 
+
+        <!-- New Resource Request -->
 
         <a
             href="/requests"
@@ -168,5 +176,6 @@ Dashboard — ResourceHub
     </div>
 
 </div>
+
 
 {% endblock %}
