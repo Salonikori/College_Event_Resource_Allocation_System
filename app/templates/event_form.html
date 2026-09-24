@@ -1,7 +1,11 @@
 {% extends "base.html" %}
 
 {% block title %}
-Create Event — ResourceHub
+    {% if event %}
+        Edit Event — ResourceHub
+    {% else %}
+        Create Event — ResourceHub
+    {% endif %}
 {% endblock %}
 
 {% block content %}
@@ -20,11 +24,21 @@ Create Event — ResourceHub
         </a>
 
         <h1 class="mt-4 text-3xl font-bold text-gray-900">
-            Create Event
+
+            {% if event %}
+                Edit Event
+            {% else %}
+                Create Event
+            {% endif %}
+
         </h1>
 
         <p class="mt-2 text-gray-600">
-            Enter the details of the college event.
+            {% if event %}
+                Update the details of this college event.
+            {% else %}
+                Enter the details of the college event.
+            {% endif %}
         </p>
 
     </div>
@@ -68,7 +82,11 @@ Create Event — ResourceHub
 
     <form
         method="POST"
-        action="{{ url_for('events.create_event') }}"
+        action="{% if event %}
+                    {{ url_for('events.edit_event', event_id=event.id) }}
+                {% else %}
+                    {{ url_for('events.create_event') }}
+                {% endif %}"
         class="bg-white border border-gray-200
                rounded-xl p-6 space-y-6"
     >
@@ -89,6 +107,7 @@ Create Event — ResourceHub
                 id="name"
                 name="name"
                 required
+                value="{{ form_data.get('name', '') }}"
                 placeholder="e.g. Annual Technical Festival"
                 class="mt-2 w-full px-4 py-3
                        border border-gray-300
@@ -116,6 +135,7 @@ Create Event — ResourceHub
                 id="organizer"
                 name="organizer"
                 required
+                value="{{ form_data.get('organizer', '') }}"
                 placeholder="e.g. Computer Department"
                 class="mt-2 w-full px-4 py-3
                        border border-gray-300
@@ -144,6 +164,7 @@ Create Event — ResourceHub
                 name="expected_attendance"
                 min="1"
                 required
+                value="{{ form_data.get('expected_attendance', '') }}"
                 placeholder="e.g. 100"
                 class="mt-2 w-full px-4 py-3
                        border border-gray-300
@@ -173,6 +194,7 @@ Create Event — ResourceHub
                     id="start_dt"
                     name="start_dt"
                     required
+                    value="{{ form_data.get('start_dt', '') }}"
                     class="mt-2 w-full px-4 py-3
                            border border-gray-300
                            rounded-lg
@@ -197,6 +219,7 @@ Create Event — ResourceHub
                     id="end_dt"
                     name="end_dt"
                     required
+                    value="{{ form_data.get('end_dt', '') }}"
                     class="mt-2 w-full px-4 py-3
                            border border-gray-300
                            rounded-lg
@@ -209,7 +232,7 @@ Create Event — ResourceHub
         </div>
 
 
-        <!-- Info -->
+        <!-- Information -->
 
         <div
             class="bg-blue-50 border border-blue-200
@@ -218,10 +241,17 @@ Create Event — ResourceHub
 
             <p class="text-sm text-blue-700">
 
-                New events are created with
-                <strong>DRAFT</strong> status.
+                {% if event %}
 
-                They can later be submitted for approval.
+                    Editing an event does not automatically change
+                    its approval status.
+
+                {% else %}
+
+                    New events are created with
+                    <strong>DRAFT</strong> status.
+
+                {% endif %}
 
             </p>
 
@@ -254,7 +284,13 @@ Create Event — ResourceHub
                        hover:bg-blue-700
                        transition"
             >
-                Create Event
+
+                {% if event %}
+                    Save Changes
+                {% else %}
+                    Create Event
+                {% endif %}
+
             </button>
 
         </div>
@@ -262,5 +298,39 @@ Create Event — ResourceHub
     </form>
 
 </div>
+
+
+<!-- Basic JavaScript validation -->
+
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const form = document.querySelector("form");
+    const startInput = document.getElementById("start_dt");
+    const endInput = document.getElementById("end_dt");
+
+    form.addEventListener("submit", function (event) {
+
+        if (
+            startInput.value &&
+            endInput.value &&
+            endInput.value <= startInput.value
+        ) {
+
+            event.preventDefault();
+
+            alert(
+                "End date/time must be after start date/time."
+            );
+
+            endInput.focus();
+        }
+
+    });
+
+});
+
+</script>
 
 {% endblock %}
