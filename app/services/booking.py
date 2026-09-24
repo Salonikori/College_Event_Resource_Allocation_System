@@ -3,15 +3,55 @@ from datetime import timedelta
 from app.models import (
     Allocation,
     AllocationStatus,
+    EventStatus,
     Resource,
     ResourceRequest,
+    RequestStatus,
 )
 
+from app.services.suitability import check_suitability
+
+
+# ============================================================
+# EXCEPTION
+# ============================================================
 
 class AllocationError(Exception):
     """Raised when a resource allocation cannot be completed."""
+
     pass
 
+
+# ============================================================
+# SUITABILITY ERROR
+# ============================================================
+
+def _format_suitability_error(
+    resource,
+    reasons,
+):
+    """
+    Convert suitability reason tuples into one clear
+    allocation error message.
+    """
+
+    if not reasons:
+        return None
+
+    details = "; ".join(
+        message
+        for _, message in reasons
+    )
+
+    return (
+        f"{resource.name} cannot be allocated. "
+        f"Reason: {details}."
+    )
+
+
+# ============================================================
+# FIND CONFLICTS
+# ============================================================
 
 def find_conflicts(
     session,
@@ -21,16 +61,17 @@ def find_conflicts(
     exclude_alloc_id=None,
 ):
     """
-    Find active allocations that overlap with the requested
-    time period, including the resource's buffer time.
+    Find active allocations that overlap the requested
+    time period, including buffer time.
 
-    Buffer is calculated in Python before building the query.
-    This avoids SQLite DateTime + timedelta issues.
+    CANCELLED allocations are intentionally excluded.
+    Therefore a cancelled allocation does not block
+    future bookings.
     """
 
     resource = session.get(
         Resource,
-        resource_id
+        resource_id,
     )
 
     if resource is None:
@@ -40,52 +81,221 @@ def find_conflicts(
         minutes=resource.buffer_minutes or 0
     )
 
-    # Expand the requested period by the resource buffer.
-    buffered_start = start - buffer
-    buffered_end = end + buffer
+    buffered_start = (
+        start - buffer
+    )
 
-    query = session.query(
-        Allocation
-    ).filter(
-        Allocation.resource_id == resource_id,
+    buffered_end = (
+        end + buffer
+    )
 
-        Allocation.status.in_(
-            [
-                AllocationStatus.ALLOCATED,
-                AllocationStatus.APPROVED,
-            ]
-        ),
+    query = (
+        session.query(
+            Allocation
+        )
+        .filter(
+            Allocation.resource_id
+            == resource_id,
 
-        Allocation.start_dt < buffered_end,
+            Allocation.status.in_(
+                [
+                    AllocationStatus.ALLOCATED,
+                    AllocationStatus.APPROVED,
+                ]
+            ),
 
-        Allocation.end_dt > buffered_start,
+            Allocation.start_dt
+            < buffered_end,
+
+            Allocation.end_dt
+            > buffered_start,
+        )
     )
 
     if exclude_alloc_id is not None:
 
         query = query.filter(
-            Allocation.id != exclude_alloc_id
+            Allocation.id
+            != exclude_alloc_id
         )
 
     return query.all()
 
 
+# ============================================================
+# VALIDATE REQUEST
+# ============================================================
+
+def _validate_request(
+    request,
+):
+    """
+    Validate the event, request status and requested
+    time before selecting resources.
+    """
+
+    event = request.event
+
+    # --------------------------------------------------------
+    # Event existence
+    # --------------------------------------------------------
+
+    if event is None:
+
+        raise AllocationError(
+            "The event associated with this request "
+            "does not exist."
+        )
+
+    # --------------------------------------------------------
+    # Event status
+    # --------------------------------------------------------
+
+    if event.status == EventStatus.CANCELLED:
+
+        raise AllocationError(
+            f"Event '{event.name}' is cancelled "
+            "and cannot receive new allocations."
+        )
+
+    if event.status == EventStatus.REJECTED:
+
+        raise AllocationError(
+            f"Event '{event.name}' is rejected "
+            "and cannot receive new allocations."
+        )
+
+    # --------------------------------------------------------
+    # Request status
+    # --------------------------------------------------------
+
+    if request.status in {
+        RequestStatus.REJECTED,
+        RequestStatus.CANCELLED,
+    }:
+
+        raise AllocationError(
+            f"Request #{request.id} is "
+            f"{request.status.value.lower()} "
+            "and cannot be allocated."
+        )
+
+    # --------------------------------------------------------
+    # Requested time
+    # --------------------------------------------------------
+
+    if (
+        request.requested_start is None
+        or request.requested_end is None
+    ):
+
+        raise AllocationError(
+            "Requested start and end times are required."
+        )
+
+    # --------------------------------------------------------
+    # End after start
+    # --------------------------------------------------------
+
+    if (
+        request.requested_end
+        <= request.requested_start
+    ):
+
+        raise AllocationError(
+            "Requested end time must be after "
+            "requested start time."
+        )
+
+    # --------------------------------------------------------
+    # Request inside event
+    # --------------------------------------------------------
+
+    if (
+        request.requested_start
+        < event.start_dt
+
+        or
+
+        request.requested_end
+        > event.end_dt
+    ):
+
+        raise AllocationError(
+            "Requested allocation time must fall "
+            "within the event start and end time."
+        )
+
+
+# ============================================================
+# PICK RESOURCES
+# ============================================================
+
 def pick_resources(
     session,
     request_item,
     request,
+    unavailable_resource_ids=None,
 ):
     """
-    Find suitable and available resources for a request item.
+    Find suitable and available physical resources
+    for one RequestItem.
+
+    This function does not create Allocation rows.
+    It only validates and selects resources.
+
+    Checks:
+
+    - Quantity
+    - Resource type
+    - Active status
+    - Suitability
+    - Capacity
+    - Availability
+    - Buffer time
+    - Previously selected resources
     """
 
-    required_quantity = request_item.quantity
+    required_quantity = (
+        request_item.quantity
+    )
 
-    # --------------------------------------------------
-    # Specific resource requested
-    # --------------------------------------------------
+    # --------------------------------------------------------
+    # Quantity
+    # --------------------------------------------------------
 
-    if request_item.specific_resource_id is not None:
+    if (
+        required_quantity is None
+        or required_quantity <= 0
+    ):
+
+        raise AllocationError(
+            f"Quantity for "
+            f"{request_item.resource_type.value} "
+            "must be greater than zero."
+        )
+
+    unavailable_resource_ids = set(
+        unavailable_resource_ids
+        or set()
+    )
+
+    # ========================================================
+    # SPECIFIC RESOURCE
+    # ========================================================
+
+    if (
+        request_item.specific_resource_id
+        is not None
+    ):
+
+        if required_quantity != 1:
+
+            raise AllocationError(
+                f"A specific "
+                f"{request_item.resource_type.value} "
+                "can only be requested with quantity 1."
+            )
 
         resource = session.get(
             Resource,
@@ -93,19 +303,44 @@ def pick_resources(
         )
 
         if resource is None:
+
             raise AllocationError(
                 "Requested resource does not exist."
             )
 
-        if not resource.is_active:
+        if resource.id in unavailable_resource_ids:
+
             raise AllocationError(
-                f"{resource.name} is not active."
+                f"{resource.name} cannot be allocated. "
+                "Reason: the resource is already selected."
             )
 
-        if resource.type != request_item.resource_type:
-            raise AllocationError(
-                f"{resource.name} has the wrong resource type."
+        # ----------------------------------------------------
+        # Centralized suitability
+        # ----------------------------------------------------
+
+        suitability_reasons = (
+            check_suitability(
+                resource,
+                request.event,
+                request_item.resource_type,
             )
+        )
+
+        error = _format_suitability_error(
+            resource,
+            suitability_reasons,
+        )
+
+        if error:
+
+            raise AllocationError(
+                error
+            )
+
+        # ----------------------------------------------------
+        # Conflict
+        # ----------------------------------------------------
 
         conflicts = find_conflicts(
             session,
@@ -117,21 +352,29 @@ def pick_resources(
         if conflicts:
 
             raise AllocationError(
-                f"{resource.name} is already booked "
-                f"or is within its required buffer period."
+                f"{resource.name} cannot be allocated. "
+                "Reason: resource is already booked or "
+                "is within its required buffer period."
             )
 
-        return [resource]
+        return [
+            resource
+        ]
 
-    # --------------------------------------------------
-    # Automatically select suitable resources
-    # --------------------------------------------------
+    # ========================================================
+    # AUTOMATIC RESOURCE SELECTION
+    # ========================================================
 
     resources = (
-        session.query(Resource)
+        session.query(
+            Resource
+        )
         .filter(
-            Resource.type == request_item.resource_type,
-            Resource.is_active.is_(True),
+            Resource.type
+            == request_item.resource_type
+        )
+        .order_by(
+            Resource.name.asc()
         )
         .all()
     )
@@ -140,6 +383,34 @@ def pick_resources(
 
     for resource in resources:
 
+        # ----------------------------------------------------
+        # Don't reuse a resource selected by another item
+        # ----------------------------------------------------
+
+        if resource.id in unavailable_resource_ids:
+
+            continue
+
+        # ----------------------------------------------------
+        # Suitability
+        # ----------------------------------------------------
+
+        suitability_reasons = (
+            check_suitability(
+                resource,
+                request.event,
+                request_item.resource_type,
+            )
+        )
+
+        if suitability_reasons:
+
+            continue
+
+        # ----------------------------------------------------
+        # Conflict
+        # ----------------------------------------------------
+
         conflicts = find_conflicts(
             session,
             resource.id,
@@ -148,94 +419,163 @@ def pick_resources(
         )
 
         if conflicts:
+
             continue
 
         selected_resources.append(
             resource
         )
 
-        if len(selected_resources) == required_quantity:
+        if (
+            len(selected_resources)
+            == required_quantity
+        ):
+
             break
 
-    # --------------------------------------------------
-    # Not enough resources
-    # --------------------------------------------------
+    # ========================================================
+    # NOT ENOUGH RESOURCES
+    # ========================================================
 
-    if len(selected_resources) < required_quantity:
+    if (
+        len(selected_resources)
+        < required_quantity
+    ):
+
+        # Try to return a useful suitability reason.
+
+        all_resources = [
+            resource
+
+            for resource in resources
+
+            if resource.id
+            not in unavailable_resource_ids
+        ]
+
+        for resource in all_resources:
+
+            reasons = check_suitability(
+                resource,
+                request.event,
+                request_item.resource_type,
+            )
+
+            if reasons:
+
+                first_reason = (
+                    reasons[0][1]
+                )
+
+                raise AllocationError(
+                    f"{resource.name} cannot be allocated. "
+                    f"Reason: {first_reason}."
+                )
 
         raise AllocationError(
-            (
-                f"Could not allocate {required_quantity} "
-                f"resource(s) of type "
-                f"{request_item.resource_type.value}."
-            )
+            f"Could not allocate "
+            f"{required_quantity} resource(s) "
+            f"of type "
+            f"{request_item.resource_type.value}."
         )
 
     return selected_resources
 
 
+# ============================================================
+# ALLOCATE REQUEST
+# ============================================================
+
 def allocate_request(
     session,
     request,
+    *,
+    commit=True,
 ):
     """
-    Atomically allocate all resources required by a request.
+    Atomically allocate ALL resources required by a request.
 
-    All resources are validated before any Allocation rows
-    are created.
+    Workflow:
 
-    If any resource cannot be allocated, everything is
-    rolled back.
+        Start transaction
+              ↓
+        Validate request
+              ↓
+        Validate ALL request items
+              ↓
+        Check suitability for ALL
+              ↓
+        Check conflicts for ALL
+              ↓
+        Select ALL resources
+              ↓
+        Create ALL allocation rows
+              ↓
+        Commit
+              ↓
+        Success
+
+    If ANY item fails:
+
+        Rollback
+        ↓
+        ZERO allocations are created.
+
+    Parameters
+    ----------
+    commit:
+        True:
+            allocate_request owns the transaction and commits it.
+
+        False:
+            allocations remain in the current transaction.
+            The caller must commit.
+
+            The approval workflow uses commit=False so that:
+
+                allocations
+                +
+                request status APPROVED
+
+            are committed together.
     """
 
-    # --------------------------------------------------
-    # Get the actual SQLAlchemy Session
-    # --------------------------------------------------
+    # --------------------------------------------------------
+    # Get actual SQLAlchemy session
+    # --------------------------------------------------------
 
-    if hasattr(session, "in_transaction"):
+    if hasattr(
+        session,
+        "in_transaction",
+    ):
+
         actual_session = session
+
     else:
+
         actual_session = session()
 
-    # --------------------------------------------------
-    # Save request information before transaction work
-    # --------------------------------------------------
-
     request_id = request.id
-    event_id = request.event_id
-    requested_start = request.requested_start
-    requested_end = request.requested_end
 
     try:
 
-        # --------------------------------------------------
-        # Flush pending ORM changes
-        # --------------------------------------------------
+        # ----------------------------------------------------
+        # Start/continue transaction
+        # ----------------------------------------------------
 
         actual_session.flush()
 
-        # --------------------------------------------------
-        # Start SQLite write transaction when necessary
-        # --------------------------------------------------
-
-        if not actual_session.in_transaction():
-
-            connection = actual_session.connection()
-
-            connection.exec_driver_sql(
-                "BEGIN IMMEDIATE"
-            )
-
-        # --------------------------------------------------
-        # Reload request from database
-        # --------------------------------------------------
+        # ----------------------------------------------------
+        # Reload request
+        # ----------------------------------------------------
 
         db_request = (
             actual_session.query(
                 ResourceRequest
             )
             .filter(
-                ResourceRequest.id == request_id
+                ResourceRequest.id
+                == request_id
             )
             .first()
         )
@@ -246,9 +586,17 @@ def allocate_request(
                 "Resource request does not exist."
             )
 
-        # --------------------------------------------------
-        # Get request items
-        # --------------------------------------------------
+        # ----------------------------------------------------
+        # Validate request
+        # ----------------------------------------------------
+
+        _validate_request(
+            db_request
+        )
+
+        # ----------------------------------------------------
+        # Request items
+        # ----------------------------------------------------
 
         request_items = list(
             db_request.items
@@ -260,21 +608,29 @@ def allocate_request(
                 "Resource request contains no items."
             )
 
-        # --------------------------------------------------
-        # Validate ALL resources first
-        # --------------------------------------------------
+        # ====================================================
+        # PHASE 1
+        # Validate EVERY item first
+        # ====================================================
 
         planned_resources = []
 
+        planned_resource_ids = set()
+
         for request_item in request_items:
 
-            resources = pick_resources(
+            selected_resources = pick_resources(
                 actual_session,
+
                 request_item,
+
                 db_request,
+
+                unavailable_resource_ids=
+                    planned_resource_ids,
             )
 
-            for resource in resources:
+            for resource in selected_resources:
 
                 planned_resources.append(
                     (
@@ -283,21 +639,37 @@ def allocate_request(
                     )
                 )
 
-        # --------------------------------------------------
-        # Create allocations only after validation succeeds
-        # --------------------------------------------------
+                planned_resource_ids.add(
+                    resource.id
+                )
+
+        # ====================================================
+        # PHASE 2
+        # Create allocations ONLY after every item passed
+        # ====================================================
 
         allocations = []
 
-        for resource, request_item in planned_resources:
+        for (
+            resource,
+            request_item,
+        ) in planned_resources:
 
             allocation = Allocation(
                 resource_id=resource.id,
-                event_id=event_id,
-                request_id=request_id,
-                start_dt=requested_start,
-                end_dt=requested_end,
-                status=AllocationStatus.ALLOCATED,
+
+                event_id=db_request.event_id,
+
+                request_id=db_request.id,
+
+                start_dt=
+                    db_request.requested_start,
+
+                end_dt=
+                    db_request.requested_end,
+
+                status=
+                    AllocationStatus.ALLOCATED,
             )
 
             actual_session.add(
@@ -308,11 +680,21 @@ def allocate_request(
                 allocation
             )
 
-        # --------------------------------------------------
-        # Commit everything atomically
-        # --------------------------------------------------
+        # ----------------------------------------------------
+        # Flush allocation rows
+        # ----------------------------------------------------
 
-        actual_session.commit()
+        actual_session.flush()
+
+        # ----------------------------------------------------
+        # Commit if this function owns the transaction
+        # ----------------------------------------------------
+
+        if commit:
+
+            actual_session.commit()
+
+        # Otherwise the caller commits.
 
         return allocations
 

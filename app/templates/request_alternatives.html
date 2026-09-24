@@ -1,130 +1,229 @@
-
 {% extends "base.html" %}
+
+{% block title %}
+Resource Alternatives - ResourceHub
+{% endblock %}
 
 {% block content %}
 
-<div class="max-w-6xl mx-auto px-4 py-8">
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
-    <!-- Page Header -->
+    <!-- ======================================================
+         HEADER
+    ======================================================= -->
+
     <div class="mb-8">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-3xl font-bold text-gray-900">
-                    Resource Alternatives
-                </h1>
 
-                <p class="mt-2 text-gray-600">
-                    Alternative resources and time slots for
-                    <span class="font-semibold">
-                        {{ event.name }}
-                    </span>
-                </p>
-            </div>
+        <a
+            href="{{ url_for('requests.requests') }}"
+            class="text-blue-600 hover:text-blue-800 text-sm font-medium"
+        >
+            ← Back to Requests
+        </a>
 
-            <a
-                href="{{ url_for('requests.requests') }}"
-                class="px-4 py-2 rounded-lg border border-gray-300
-                       text-gray-700 hover:bg-gray-50"
-            >
-                Back to Requests
-            </a>
-        </div>
+        <h1 class="text-3xl font-bold text-gray-900 mt-4">
+            Alternative Resources
+        </h1>
+
+        <p class="mt-2 text-gray-600">
+            Suitable alternatives for your resource request.
+        </p>
+
     </div>
 
 
-    <!-- Request Information -->
-    <div class="bg-white border border-gray-200 rounded-xl
-                shadow-sm p-6 mb-8">
+    <!-- ======================================================
+         REQUEST SUMMARY
+    ======================================================= -->
 
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">
-            Requested Booking
+    <div class="bg-white border border-gray-200
+                rounded-xl shadow-sm p-6 mb-10">
+
+        <h2 class="text-lg font-semibold text-gray-900 mb-5">
+            Request Details
         </h2>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
             <div>
+
                 <p class="text-sm text-gray-500">
                     Event
                 </p>
 
-                <p class="font-medium text-gray-900">
+                <p class="font-medium text-gray-900 mt-1">
                     {{ event.name }}
                 </p>
+
             </div>
 
+
             <div>
+
                 <p class="text-sm text-gray-500">
                     Start
                 </p>
 
-                <p class="font-medium text-gray-900">
-                    {{ resource_request.requested_start.strftime("%d %b %Y, %I:%M %p") }}
+                <p class="font-medium text-gray-900 mt-1">
+
+                    {{
+                        resource_request.requested_start.strftime(
+                            "%d %b %Y, %I:%M %p"
+                        )
+                    }}
+
                 </p>
+
             </div>
 
+
             <div>
+
                 <p class="text-sm text-gray-500">
                     End
                 </p>
 
-                <p class="font-medium text-gray-900">
-                    {{ resource_request.requested_end.strftime("%d %b %Y, %I:%M %p") }}
+                <p class="font-medium text-gray-900 mt-1">
+
+                    {{
+                        resource_request.requested_end.strftime(
+                            "%d %b %Y, %I:%M %p"
+                        )
+                    }}
+
                 </p>
+
             </div>
 
         </div>
+
     </div>
 
 
+    <!-- ======================================================
+         ALTERNATIVES FOR EACH ITEM
+    ======================================================= -->
+
     {% for alternative in alternatives %}
 
-    <!-- Resource Type Section -->
-    <div class="mb-10">
+    <div class="mb-12">
 
-        <div class="flex items-center justify-between mb-4">
 
-            <div>
-                <h2 class="text-xl font-bold text-gray-900">
-                    {{ alternative.item.resource_type.value }}
-                </h2>
+        <!-- ==================================================
+             RESOURCE TYPE
+        =================================================== -->
 
-                <p class="text-sm text-gray-500 mt-1">
-                    Quantity requested:
-                    <span class="font-medium">
-                        {{ alternative.item.quantity }}
-                    </span>
-                </p>
-            </div>
+        <div class="mb-5">
+
+            <h2 class="text-xl font-bold text-gray-900">
+
+                {{ alternative.item.resource_type.value
+                    .replace('_', ' ')
+                    .title()
+                }}
+
+            </h2>
+
+            <p class="text-sm text-gray-500 mt-1">
+
+                Quantity requested:
+
+                <span class="font-semibold">
+                    {{ alternative.item.quantity }}
+                </span>
+
+            </p>
 
         </div>
 
 
-        <!-- ================================================== -->
-        <!-- EXACT TIME ALTERNATIVES -->
-        <!-- ================================================== -->
+        <!-- ==================================================
+             REQUESTED RESOURCE STATUS
+        =================================================== -->
+
+        {% if alternative.requested_resource %}
+
+        <div class="bg-red-50 border border-red-200
+                    rounded-xl p-5 mb-6">
+
+            <div class="flex items-start gap-4">
+
+                <div
+                    class="w-10 h-10 rounded-full
+                           bg-red-100 flex items-center
+                           justify-center flex-shrink-0"
+                >
+
+                    <span class="text-red-700 font-bold text-lg">
+                        ✕
+                    </span>
+
+                </div>
+
+                <div>
+
+                    <h3 class="font-semibold text-red-900">
+                        Requested Resource
+                    </h3>
+
+                    <p class="text-red-800 mt-1">
+
+                        <strong>
+                            {{ alternative.requested_resource.name }}
+                        </strong>
+
+                        is unavailable for the requested time.
+
+                    </p>
+
+                    <p class="text-sm text-red-700 mt-2">
+
+                        ResourceHub has excluded this resource and
+                        searched for suitable alternatives of the same type.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        {% endif %}
+
+
+        <!-- ==================================================
+             EXACT TIME ALTERNATIVES
+        =================================================== -->
 
         {% if alternative.exact_time %}
 
         <div class="mb-8">
 
-            <div class="flex items-center gap-2 mb-4">
+            <div class="flex items-center gap-3 mb-5">
 
-                <div class="w-8 h-8 rounded-full bg-green-100
-                            flex items-center justify-center">
+                <div
+                    class="w-9 h-9 rounded-full
+                           bg-green-100 flex items-center
+                           justify-center"
+                >
+
                     <span class="text-green-700 font-bold">
                         ✓
                     </span>
+
                 </div>
 
                 <div>
+
                     <h3 class="text-lg font-semibold text-gray-900">
-                        Available at Requested Time
+                        Suggested Alternatives
                     </h3>
 
                     <p class="text-sm text-gray-500">
-                        These resources are available for the requested
-                        time period.
+                        Available at the requested time.
                     </p>
+
                 </div>
 
             </div>
@@ -134,58 +233,104 @@
 
                 {% for candidate in alternative.exact_time %}
 
-                <div class="bg-white border border-gray-200
-                            rounded-xl p-5 shadow-sm
-                            hover:shadow-md transition">
+                <div
+                    class="bg-white border border-gray-200
+                           rounded-xl p-5 shadow-sm
+                           hover:shadow-md transition"
+                >
 
-                    <div class="flex items-start justify-between">
+                    <div class="flex items-start
+                                justify-between gap-3">
 
                         <div>
-                            <h4 class="font-semibold text-gray-900">
+
+                            <h4 class="font-semibold text-gray-900 text-lg">
+
                                 {{ candidate.resource.name }}
+
                             </h4>
 
                             <p class="text-sm text-gray-500 mt-1">
-                                {{ candidate.reason }}
+
+                                {{
+                                    candidate.resource.type.value
+                                    .replace('_', ' ')
+                                    .title()
+                                }}
+
                             </p>
+
                         </div>
 
-                        <span class="px-2.5 py-1 rounded-full
-                                     text-xs font-medium
-                                     bg-green-100 text-green-700">
+
+                        <span
+                            class="px-2.5 py-1 rounded-full
+                                   text-xs font-medium
+                                   bg-green-100 text-green-700"
+                        >
                             Available
                         </span>
 
                     </div>
 
 
-                    <div class="mt-5 space-y-2">
+                    <!-- Capacity -->
 
-                        <div class="flex justify-between text-sm">
+                    <div class="mt-5 space-y-3">
 
-                            <span class="text-gray-500">
+                        <div class="flex justify-between">
+
+                            <span class="text-sm text-gray-500">
                                 Capacity
                             </span>
 
                             <span class="font-medium text-gray-900">
+
                                 {% if candidate.resource.capacity is none %}
+
                                     Unlimited
+
                                 {% else %}
+
                                     {{ candidate.resource.capacity }}
+
                                 {% endif %}
+
                             </span>
 
                         </div>
 
 
-                        <div class="flex justify-between text-sm">
+                        <!-- Buffer -->
 
-                            <span class="text-gray-500">
+                        <div class="flex justify-between">
+
+                            <span class="text-sm text-gray-500">
                                 Buffer
                             </span>
 
                             <span class="font-medium text-gray-900">
-                                {{ candidate.resource.buffer_minutes }} min
+
+                                {{ candidate.resource.buffer_minutes }}
+                                min
+
+                            </span>
+
+                        </div>
+
+
+                        <!-- Attendance -->
+
+                        <div class="flex justify-between">
+
+                            <span class="text-sm text-gray-500">
+                                Required
+                            </span>
+
+                            <span class="font-medium text-gray-900">
+
+                                {{ event.expected_attendance }}
+
                             </span>
 
                         </div>
@@ -193,26 +338,23 @@
                     </div>
 
 
-                    <div class="mt-5">
+                    <!-- Reason -->
 
-                        <span class="inline-flex items-center
-                                     px-3 py-1.5 rounded-lg
-                                     bg-gray-100 text-gray-700
-                                     text-sm">
+                    <div
+                        class="mt-5 bg-green-50
+                               border border-green-100
+                               rounded-lg p-3"
+                    >
 
-                            Best-fit score:
+                        <p class="text-sm text-green-800">
 
-                            <span class="ml-1 font-semibold">
+                            <strong>
+                                Why suggested:
+                            </strong>
 
-                                {% if candidate.resource.capacity is none %}
-                                    N/A
-                                {% else %}
-                                    {{ candidate.score[0] }}
-                                {% endif %}
+                            {{ candidate.reason }}
 
-                            </span>
-
-                        </span>
+                        </p>
 
                     </div>
 
@@ -227,32 +369,39 @@
         {% endif %}
 
 
-        <!-- ================================================== -->
-        <!-- NEARBY TIME ALTERNATIVES -->
-        <!-- ================================================== -->
+        <!-- ==================================================
+             NEARBY TIME
+        =================================================== -->
 
         {% if alternative.nearby_time %}
 
-        <div>
+        <div class="mb-8">
 
-            <div class="flex items-center gap-2 mb-4">
+            <div class="flex items-center gap-3 mb-5">
 
-                <div class="w-8 h-8 rounded-full bg-yellow-100
-                            flex items-center justify-center">
+                <div
+                    class="w-9 h-9 rounded-full
+                           bg-yellow-100 flex items-center
+                           justify-center"
+                >
+
                     <span class="text-yellow-700 font-bold">
                         ↔
                     </span>
+
                 </div>
 
                 <div>
+
                     <h3 class="text-lg font-semibold text-gray-900">
-                        Nearby Time Slots
+                        Nearby Time Alternatives
                     </h3>
 
                     <p class="text-sm text-gray-500">
-                        The resource is unavailable at the requested time,
-                        but these nearby slots are available.
+                        No suitable resource was available at the
+                        requested time. These nearby slots are available.
                     </p>
+
                 </div>
 
             </div>
@@ -262,21 +411,32 @@
 
                 {% for slot in alternative.nearby_time %}
 
-                <div class="bg-white border border-gray-200
-                            rounded-xl p-5 shadow-sm
-                            flex flex-col md:flex-row
-                            md:items-center md:justify-between gap-4">
+                <div
+                    class="bg-white border border-gray-200
+                           rounded-xl p-5 shadow-sm
+                           flex flex-col md:flex-row
+                           md:items-center md:justify-between
+                           gap-4"
+                >
 
                     <div>
 
                         <h4 class="font-semibold text-gray-900">
+
                             {{ slot.resource.name }}
+
                         </h4>
 
                         <div class="flex flex-wrap gap-3 mt-2">
 
                             <span class="text-sm text-gray-600">
-                                {{ slot.start_dt.strftime("%d %b %Y, %I:%M %p") }}
+
+                                {{
+                                    slot.start_dt.strftime(
+                                        "%d %b %Y, %I:%M %p"
+                                    )
+                                }}
+
                             </span>
 
                             <span class="text-gray-400">
@@ -284,7 +444,13 @@
                             </span>
 
                             <span class="text-sm text-gray-600">
-                                {{ slot.end_dt.strftime("%I:%M %p") }}
+
+                                {{
+                                    slot.end_dt.strftime(
+                                        "%I:%M %p"
+                                    )
+                                }}
+
                             </span>
 
                         </div>
@@ -292,22 +458,32 @@
                     </div>
 
 
-                    <div class="flex items-center gap-3">
+                    <div>
 
                         {% if slot.direction == "before" %}
 
-                            <span class="px-3 py-1.5 rounded-lg
-                                         bg-blue-100 text-blue-700
-                                         text-sm font-medium">
-                                {{ slot.distance_minutes }} min earlier
+                            <span
+                                class="px-3 py-1.5 rounded-lg
+                                       bg-blue-100 text-blue-700
+                                       text-sm font-medium"
+                            >
+
+                                {{ slot.distance_minutes }}
+                                min earlier
+
                             </span>
 
                         {% else %}
 
-                            <span class="px-3 py-1.5 rounded-lg
-                                         bg-purple-100 text-purple-700
-                                         text-sm font-medium">
-                                {{ slot.distance_minutes }} min later
+                            <span
+                                class="px-3 py-1.5 rounded-lg
+                                       bg-purple-100 text-purple-700
+                                       text-sm font-medium"
+                            >
+
+                                {{ slot.distance_minutes }}
+                                min later
+
                             </span>
 
                         {% endif %}
@@ -325,35 +501,44 @@
         {% endif %}
 
 
-        <!-- ================================================== -->
-        <!-- NO ALTERNATIVES -->
-        <!-- ================================================== -->
+        <!-- ==================================================
+             NO ALTERNATIVES
+        =================================================== -->
 
-        {% if not alternative.exact_time and not alternative.nearby_time %}
+        {% if not alternative.exact_time
+              and not alternative.nearby_time %}
 
-        <div class="bg-gray-50 border border-gray-200
-                    rounded-xl p-6">
+        <div
+            class="bg-gray-50 border border-gray-200
+                   rounded-xl p-6"
+        >
 
-            <div class="flex items-center gap-3">
+            <div class="flex items-start gap-4">
 
-                <div class="w-10 h-10 rounded-full bg-gray-200
-                            flex items-center justify-center">
+                <div
+                    class="w-10 h-10 rounded-full
+                           bg-gray-200 flex items-center
+                           justify-center"
+                >
 
-                    <span class="text-gray-500 font-bold">
+                    <span class="text-gray-600 font-bold">
                         !
                     </span>
 
                 </div>
 
                 <div>
+
                     <h3 class="font-semibold text-gray-900">
-                        No alternatives found
+                        No suitable alternatives found
                     </h3>
 
                     <p class="text-sm text-gray-600 mt-1">
-                        No suitable resource or nearby time slot
-                        was found within the search window.
+                        No active resource of the required type
+                        satisfies the capacity, suitability,
+                        availability, and buffer requirements.
                     </p>
+
                 </div>
 
             </div>
@@ -365,6 +550,23 @@
     </div>
 
     {% endfor %}
+
+
+    <!-- Back -->
+
+    <div class="mt-8">
+
+        <a
+            href="{{ url_for('requests.requests') }}"
+            class="inline-flex items-center px-5 py-3
+                   bg-gray-100 text-gray-700
+                   rounded-lg font-medium
+                   hover:bg-gray-200 transition"
+        >
+            ← Back to Requests
+        </a>
+
+    </div>
 
 </div>
 

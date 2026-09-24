@@ -1,10 +1,19 @@
-
 from datetime import timedelta
 from math import inf
 
-from app.models import Resource
+from app.models import (
+    Event,
+    Resource,
+)
+
 from app.services.booking import find_conflicts
 
+from app.services.suitability import check_suitability
+
+
+# ============================================================
+# FIND EXACT-TIME ALTERNATIVE RESOURCES
+# ============================================================
 
 def find_alternatives(
     session,
@@ -12,21 +21,20 @@ def find_alternatives(
     required_type,
     start_dt,
     end_dt,
+    excluded_resource_id=None,
 ):
     """
     Find suitable alternative resources for an event.
 
-    Selection criteria:
-    1. Resource must be active.
-    2. Resource type must match.
-    3. Resource capacity must be sufficient.
-    4. Resource must be available, including buffer time.
-    5. Prefer the smallest suitable resource.
-    6. Prefer shorter buffer times when capacity is otherwise
-       equivalent.
-
-    Returns:
-        List of dictionaries containing resource, score and reason.
+    Rules:
+    - Resource must be active.
+    - Resource type must match.
+    - Resource capacity must be sufficient.
+    - Resource must pass suitability checks.
+    - Resource must be available.
+    - Buffer time is respected.
+    - Requested resource can be excluded.
+    - Best-fit resource is returned first.
     """
 
     resources = (
@@ -42,24 +50,47 @@ def find_alternatives(
 
     for resource in resources:
 
-        # ---------------------------------------------------------
-        # 1. Check capacity
-        # ---------------------------------------------------------
+        # ----------------------------------------------------
+        # Exclude originally requested resource
+        # ----------------------------------------------------
+
+        if (
+            excluded_resource_id is not None
+            and resource.id == excluded_resource_id
+        ):
+            continue
+
+        # ----------------------------------------------------
+        # Suitability
+        # ----------------------------------------------------
+
+        suitability_reasons = check_suitability(
+            resource=resource,
+            event=event,
+            required_type=required_type,
+        )
+
+        if suitability_reasons:
+            continue
+
+        # ----------------------------------------------------
+        # Capacity
+        # ----------------------------------------------------
 
         if resource.capacity is None:
+
             capacity = inf
+
         else:
+
             capacity = resource.capacity
 
         if capacity < event.expected_attendance:
             continue
 
-        # ---------------------------------------------------------
-        # 2. Check booking conflicts
-        #
-        # find_conflicts() already accounts for the resource's
-        # buffer_minutes.
-        # ---------------------------------------------------------
+        # ----------------------------------------------------
+        # Availability
+        # ----------------------------------------------------
 
         conflicts = find_conflicts(
             session=session,
@@ -71,57 +102,63 @@ def find_alternatives(
         if conflicts:
             continue
 
-        # ---------------------------------------------------------
-        # 3. Calculate best-fit score
-        # ---------------------------------------------------------
+        # ----------------------------------------------------
+        # Best-fit score
+        # ----------------------------------------------------
 
         if capacity == inf:
+
             unused_capacity = inf
+
         else:
+
             unused_capacity = (
-                capacity - event.expected_attendance
+                capacity
+                - event.expected_attendance
             )
 
-        # Smaller unused capacity is preferred.
-        #
-        # Buffer is used as a secondary factor.
-        if unused_capacity == inf:
-            score = (
-                inf,
-                resource.buffer_minutes or 0,
-            )
-        else:
-            score = (
-                unused_capacity,
-                resource.buffer_minutes or 0,
-            )
+        buffer_minutes = (
+            resource.buffer_minutes or 0
+        )
 
-        # ---------------------------------------------------------
-        # 4. Build explanation
-        # ---------------------------------------------------------
+        score = (
+            unused_capacity,
+            buffer_minutes,
+        )
+
+        # ----------------------------------------------------
+        # Explanation
+        # ----------------------------------------------------
 
         if capacity == inf:
-            capacity_text = "unlimited capacity"
-        else:
-            capacity_text = f"capacity {capacity}"
 
-        buffer_minutes = resource.buffer_minutes or 0
+            capacity_text = "unlimited capacity"
+
+        else:
+
+            capacity_text = (
+                f"capacity {capacity}"
+            )
+
+        reason = (
+            f"{resource.name} is available at the "
+            f"requested time, has {capacity_text}, "
+            f"and is suitable for "
+            f"{event.expected_attendance} attendees. "
+            f"Buffer: {buffer_minutes} minutes."
+        )
 
         candidates.append(
             {
                 "resource": resource,
                 "score": score,
-                "reason": (
-                    f"{resource.name} is available, has "
-                    f"{capacity_text}, and requires a "
-                    f"{buffer_minutes}-minute buffer."
-                ),
+                "reason": reason,
             }
         )
 
-    # -------------------------------------------------------------
-    # 5. Sort by best fit
-    # -------------------------------------------------------------
+    # --------------------------------------------------------
+    # Best fit first
+    # --------------------------------------------------------
 
     candidates.sort(
         key=lambda candidate: candidate["score"]
@@ -130,6 +167,43 @@ def find_alternatives(
     return candidates
 
 
+# ============================================================
+# FIND EVENT FOR LEGACY NEARBY-SLOT CALLS
+# ============================================================
+
+def _find_event_for_time(
+    session,
+    start_dt,
+    end_dt,
+):
+    """
+    Compatibility helper.
+
+    Older tests/callers call find_nearby_time_slots()
+    without supplying an Event.
+
+    Try to find an event covering the requested period.
+    """
+
+    event = (
+        session.query(Event)
+        .filter(
+            Event.start_dt <= start_dt,
+            Event.end_dt >= end_dt,
+        )
+        .order_by(
+            Event.start_dt.asc()
+        )
+        .first()
+    )
+
+    return event
+
+
+# ============================================================
+# FIND NEARBY TIME SLOTS
+# ============================================================
+
 def find_nearby_time_slots(
     session,
     resource,
@@ -137,60 +211,85 @@ def find_nearby_time_slots(
     end_dt,
     search_minutes=120,
     step_minutes=30,
+    event=None,
+    required_type=None,
 ):
     """
-    Find nearby available time slots for a specific resource.
+    Find nearby available time slots.
 
-    The function searches both before and after the requested time.
+    IMPORTANT:
+    The original function accepted:
 
-    Example:
+        session
+        resource
+        start_dt
+        end_dt
 
-        Requested:
-        2:00 PM - 4:00 PM
+    That API is preserved.
 
-        Possible alternatives:
+    Newer callers can additionally provide:
 
-        1:00 PM - 3:00 PM
-        3:00 PM - 5:00 PM
-        4:00 PM - 6:00 PM
+        event
+        required_type
 
-    Args:
-        session:
-            SQLAlchemy database session.
-
-        resource:
-            Resource object to check.
-
-        start_dt:
-            Requested starting datetime.
-
-        end_dt:
-            Requested ending datetime.
-
-        search_minutes:
-            How far from the requested time to search.
-
-        step_minutes:
-            Size of each time shift.
-
-    Returns:
-        List of available nearby time slots.
+    This keeps all existing tests and application code
+    compatible.
     """
-
-    duration = end_dt - start_dt
 
     suggestions = []
 
-    # -------------------------------------------------------------
-    # Validate time range
-    # -------------------------------------------------------------
+    # --------------------------------------------------------
+    # Validate requested period
+    # --------------------------------------------------------
 
     if end_dt <= start_dt:
         return suggestions
 
-    # -------------------------------------------------------------
-    # Search before and after requested time
-    # -------------------------------------------------------------
+    # --------------------------------------------------------
+    # Resource type
+    # --------------------------------------------------------
+
+    if required_type is None:
+        required_type = resource.type
+
+    # --------------------------------------------------------
+    # Event compatibility
+    # --------------------------------------------------------
+
+    if event is None:
+
+        event = _find_event_for_time(
+            session=session,
+            start_dt=start_dt,
+            end_dt=end_dt,
+        )
+
+    # --------------------------------------------------------
+    # If an event is available, verify suitability.
+    #
+    # If no event can be found, retain the legacy behaviour.
+    # --------------------------------------------------------
+
+    if event is not None:
+
+        suitability_reasons = check_suitability(
+            resource=resource,
+            event=event,
+            required_type=required_type,
+        )
+
+        if suitability_reasons:
+            return suggestions
+
+    # --------------------------------------------------------
+    # Duration must remain unchanged
+    # --------------------------------------------------------
+
+    duration = end_dt - start_dt
+
+    # --------------------------------------------------------
+    # Search before and after
+    # --------------------------------------------------------
 
     for offset in range(
         step_minutes,
@@ -198,15 +297,19 @@ def find_nearby_time_slots(
         step_minutes,
     ):
 
-        # =========================================================
-        # OPTION 1 — Earlier time slot
-        # =========================================================
+        # ====================================================
+        # EARLIER SLOT
+        # ====================================================
 
-        earlier_start = start_dt - timedelta(
-            minutes=offset
+        earlier_start = (
+            start_dt
+            - timedelta(minutes=offset)
         )
 
-        earlier_end = earlier_start + duration
+        earlier_end = (
+            earlier_start
+            + duration
+        )
 
         earlier_conflicts = find_conflicts(
             session=session,
@@ -216,6 +319,7 @@ def find_nearby_time_slots(
         )
 
         if not earlier_conflicts:
+
             suggestions.append(
                 {
                     "resource": resource,
@@ -226,15 +330,19 @@ def find_nearby_time_slots(
                 }
             )
 
-        # =========================================================
-        # OPTION 2 — Later time slot
-        # =========================================================
+        # ====================================================
+        # LATER SLOT
+        # ====================================================
 
-        later_start = start_dt + timedelta(
-            minutes=offset
+        later_start = (
+            start_dt
+            + timedelta(minutes=offset)
         )
 
-        later_end = later_start + duration
+        later_end = (
+            later_start
+            + duration
+        )
 
         later_conflicts = find_conflicts(
             session=session,
@@ -244,6 +352,7 @@ def find_nearby_time_slots(
         )
 
         if not later_conflicts:
+
             suggestions.append(
                 {
                     "resource": resource,
@@ -254,16 +363,23 @@ def find_nearby_time_slots(
                 }
             )
 
-    # -------------------------------------------------------------
-    # Sort by closest time to requested slot
-    # -------------------------------------------------------------
+    # --------------------------------------------------------
+    # Sort
+    # --------------------------------------------------------
 
     suggestions.sort(
-        key=lambda suggestion: suggestion["distance_minutes"]
+        key=lambda suggestion: (
+            suggestion["distance_minutes"],
+            0 if suggestion["direction"] == "after" else 1,
+        )
     )
 
     return suggestions
 
+
+# ============================================================
+# COMPLETE ALTERNATIVE WORKFLOW
+# ============================================================
 
 def get_resource_alternatives(
     session,
@@ -271,31 +387,23 @@ def get_resource_alternatives(
     required_type,
     start_dt,
     end_dt,
+    excluded_resource_id=None,
     search_minutes=120,
     step_minutes=30,
 ):
     """
-    Complete alternative-selection function.
+    Find alternatives.
 
     First:
-        Try to find another suitable resource at the requested time.
+        Try another resource at the exact requested time.
 
-    If suitable resources are available:
-        Return them.
-
-    If no resource is available:
-        Find nearby time slots for suitable resources.
-
-    Returns:
-        {
-            "exact_time": [...],
-            "nearby_time": [...]
-        }
+    If none is available:
+        Search nearby time slots.
     """
 
-    # -------------------------------------------------------------
-    # 1. Find resources available at the requested time
-    # -------------------------------------------------------------
+    # --------------------------------------------------------
+    # Exact-time alternatives
+    # --------------------------------------------------------
 
     exact_time = find_alternatives(
         session=session,
@@ -303,24 +411,21 @@ def get_resource_alternatives(
         required_type=required_type,
         start_dt=start_dt,
         end_dt=end_dt,
+        excluded_resource_id=excluded_resource_id,
     )
 
-    # -------------------------------------------------------------
-    # 2. If resources are available, return them
-    # -------------------------------------------------------------
-
     if exact_time:
+
         return {
             "exact_time": exact_time,
             "nearby_time": [],
         }
 
-    # -------------------------------------------------------------
-    # 3. No exact-time resource found.
+    # --------------------------------------------------------
+    # No exact-time alternative.
     #
-    # Find suitable resources first, ignoring their current
-    # availability.
-    # -------------------------------------------------------------
+    # Search suitable resources for nearby slots.
+    # --------------------------------------------------------
 
     resources = (
         session.query(Resource)
@@ -335,12 +440,33 @@ def get_resource_alternatives(
 
     for resource in resources:
 
-        # Check capacity
-        if resource.capacity is not None:
-            if resource.capacity < event.expected_attendance:
-                continue
+        # ----------------------------------------------------
+        # Exclude requested resource
+        # ----------------------------------------------------
 
-        # Find nearby free slots
+        if (
+            excluded_resource_id is not None
+            and resource.id == excluded_resource_id
+        ):
+            continue
+
+        # ----------------------------------------------------
+        # Suitability
+        # ----------------------------------------------------
+
+        suitability_reasons = check_suitability(
+            resource=resource,
+            event=event,
+            required_type=required_type,
+        )
+
+        if suitability_reasons:
+            continue
+
+        # ----------------------------------------------------
+        # Find nearby slots
+        # ----------------------------------------------------
+
         slots = find_nearby_time_slots(
             session=session,
             resource=resource,
@@ -348,20 +474,26 @@ def get_resource_alternatives(
             end_dt=end_dt,
             search_minutes=search_minutes,
             step_minutes=step_minutes,
+            event=event,
+            required_type=required_type,
         )
 
-        nearby_time.extend(slots)
+        nearby_time.extend(
+            slots
+        )
 
-    # -------------------------------------------------------------
-    # 4. Closest time slots first
-    # -------------------------------------------------------------
+    # --------------------------------------------------------
+    # Sort closest first
+    # --------------------------------------------------------
 
     nearby_time.sort(
-        key=lambda slot: slot["distance_minutes"]
+        key=lambda slot: (
+            slot["distance_minutes"],
+            slot["resource"].name,
+        )
     )
 
     return {
         "exact_time": [],
         "nearby_time": nearby_time,
     }
-
