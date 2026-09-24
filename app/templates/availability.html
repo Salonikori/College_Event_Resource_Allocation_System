@@ -4,402 +4,964 @@
 Availability — ResourceHub
 {% endblock %}
 
+
 {% block content %}
 
-<div class="mb-8">
-
-    <h1 class="text-3xl font-bold text-gray-900">
-        Resource Availability
-    </h1>
-
-    <p class="mt-2 text-gray-600">
-        View resource bookings, buffer periods, and available time slots.
-    </p>
-
-</div>
+<div class="max-w-6xl mx-auto">
 
 
-{% if resources %}
+    <!-- =====================================================
+         HEADER
+    ====================================================== -->
 
-<div class="space-y-6">
+    <div class="mb-8">
 
-    {% for resource in resources %}
-
-    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-
-        <!-- Resource Header -->
-
-        <div class="px-6 py-4 border-b border-gray-200
-                    flex flex-col sm:flex-row
-                    sm:items-center sm:justify-between gap-4">
+        <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
 
             <div>
 
-                <h2 class="text-lg font-semibold text-gray-900">
-                    {{ resource.name }}
-                </h2>
+                <h1 class="text-3xl font-bold text-gray-900">
+                    Resource Availability
+                </h1>
 
-                <div class="mt-1 text-sm text-gray-500">
-
-                    {{ resource.type.value | title }}
-
-                    {% if resource.capacity %}
-                        · Capacity {{ resource.capacity }}
-                    {% endif %}
-
-                    · Buffer {{ resource.buffer_minutes or 0 }} min
-
-                </div>
+                <p class="mt-2 text-gray-600">
+                    Check whether a resource is available for a
+                    specific date and time.
+                </p>
 
             </div>
 
+        </div>
 
-            <!-- Resource Status -->
+    </div>
 
-            {% if resource.is_active %}
 
-            <span
-                class="inline-flex items-center
-                       px-3 py-1 rounded-full
-                       text-xs font-medium
-                       bg-green-100 text-green-700"
+    <!-- =====================================================
+         FLASH MESSAGES
+    ====================================================== -->
+
+    {% with messages = get_flashed_messages(
+        with_categories=true
+    ) %}
+
+        {% if messages %}
+
+            <div class="space-y-3 mb-6">
+
+                {% for category, message in messages %}
+
+                    <div
+                        class="
+                            px-4
+                            py-3
+                            rounded-lg
+                            border
+
+                            {% if category == 'error' %}
+
+                                bg-red-50
+                                text-red-800
+                                border-red-200
+
+                            {% elif category == 'success' %}
+
+                                bg-green-50
+                                text-green-800
+                                border-green-200
+
+                            {% else %}
+
+                                bg-blue-50
+                                text-blue-800
+                                border-blue-200
+
+                            {% endif %}
+                        "
+                    >
+
+                        {{ message }}
+
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+        {% endif %}
+
+    {% endwith %}
+
+
+    <!-- =====================================================
+         AVAILABILITY FORM
+    ====================================================== -->
+
+    <div
+        class="
+            bg-white
+            border
+            border-gray-200
+            rounded-xl
+            shadow-sm
+            p-6
+            mb-8
+        "
+    >
+
+        <div class="mb-5">
+
+            <h2
+                class="
+                    text-xl
+                    font-semibold
+                    text-gray-900
+                "
             >
-                ● Active
-            </span>
+                Check Availability
+            </h2>
 
-            {% else %}
-
-            <span
-                class="inline-flex items-center
-                       px-3 py-1 rounded-full
-                       text-xs font-medium
-                       bg-gray-100 text-gray-700"
-            >
-                ● Inactive
-            </span>
-
-            {% endif %}
+            <p class="text-sm text-gray-500 mt-1">
+                Buffer time is automatically considered when
+                checking for conflicts.
+            </p>
 
         </div>
 
 
-        <!-- Timeline -->
-
-        <div class="p-6">
-
-            <div class="relative">
-
-                <!-- Time Labels -->
-
-                <div class="grid grid-cols-6
-                            text-xs text-gray-400
-                            mb-2">
-
-                    <span>08:00</span>
-                    <span>10:00</span>
-                    <span>12:00</span>
-                    <span>14:00</span>
-                    <span>16:00</span>
-                    <span class="text-right">18:00</span>
-
-                </div>
+        <form
+            method="POST"
+            action="{{ url_for('availability.availability') }}"
+            id="availabilityForm"
+            class="space-y-5"
+        >
 
 
-                <!-- Timeline Bar -->
+            <!-- =============================================
+                 FIELDS
+            ============================================== -->
 
-                <div
-                    class="relative h-16
-                           bg-gray-100
-                           rounded-lg
-                           border border-gray-200
-                           overflow-hidden"
-                >
-
-                    <!-- Grid Lines -->
-
-                    <div class="absolute inset-0 grid grid-cols-5">
-
-                        <div class="border-r border-gray-200"></div>
-
-                        <div class="border-r border-gray-200"></div>
-
-                        <div class="border-r border-gray-200"></div>
-
-                        <div class="border-r border-gray-200"></div>
-
-                        <div></div>
-
-                    </div>
+            <div
+                class="
+                    grid
+                    grid-cols-1
+                    md:grid-cols-4
+                    gap-4
+                "
+            >
 
 
-                    <!-- Allocations -->
+                <!-- RESOURCE -->
 
-                    {% for allocation in allocations %}
+                <div>
 
-                        {% if allocation.resource_id == resource.id %}
+                    <label
+                        for="resource_id"
+                        class="
+                            block
+                            text-sm
+                            font-semibold
+                            text-gray-700
+                            mb-2
+                        "
+                    >
+                        Resource
+                    </label>
 
-                            {% set start_minutes =
-                                allocation.start_dt.hour * 60
-                                + allocation.start_dt.minute
-                            %}
 
-                            {% set end_minutes =
-                                allocation.end_dt.hour * 60
-                                + allocation.end_dt.minute
-                            %}
+                    <select
+                        id="resource_id"
+                        name="resource_id"
+                        required
+
+                        class="
+                            w-full
+                            px-4
+                            py-3
+                            border
+                            border-gray-300
+                            rounded-lg
+                            bg-white
+                            focus:outline-none
+                            focus:ring-2
+                            focus:ring-blue-500
+                        "
+                    >
+
+                        <option value="">
+                            Select resource
+                        </option>
 
 
-                            {#
-                                Timeline:
-                                08:00 = 480 minutes
-                                18:00 = 1080 minutes
-                            #}
+                        {% for resource in resources %}
 
-                            {% if start_minutes <= 480 %}
+                            <option
+                                value="{{ resource.id }}"
 
-                                {% set start_percent = 0 %}
-
-                            {% elif start_minutes >= 1080 %}
-
-                                {% set start_percent = 100 %}
-
-                            {% else %}
-
-                                {% set start_percent =
-                                    ((start_minutes - 480) / 600 * 100)
-                                    | round(2)
+                                {% if
+                                    form_data.get(
+                                        'resource_id'
+                                    )|string
+                                    ==
+                                    resource.id|string
                                 %}
-
-                            {% endif %}
-
-
-                            {% if end_minutes >= 1080 %}
-
-                                {% set end_percent = 100 %}
-
-                            {% elif end_minutes <= 480 %}
-
-                                {% set end_percent = 0 %}
-
-                            {% else %}
-
-                                {% set end_percent =
-                                    ((end_minutes - 480) / 600 * 100)
-                                    | round(2)
-                                %}
-
-                            {% endif %}
-
-
-                            <!-- Allocation Block -->
-
-                            <div
-                                class="
-                                    absolute top-2 bottom-2
-                                    rounded-lg
-                                    px-3 py-2
-                                    text-white
-                                    text-xs
-                                    shadow-sm
-                                    overflow-hidden
-
-                                    {% if allocation.status.value == 'allocated' %}
-                                        bg-blue-500
-                                    {% elif allocation.status.value == 'approved' %}
-                                        bg-green-500
-                                    {% else %}
-                                        bg-gray-500
-                                    {% endif %}
-                                "
-                                style="left: {{ start_percent }}%; width: {{ end_percent - start_percent }}%;"
+                                    selected
+                                {% endif %}
                             >
 
-                                {% if allocation.event %}
+                                {{ resource.name }}
 
-                                    <div class="font-semibold truncate">
-                                        {{ allocation.event.name }}
-                                    </div>
+                                —
 
-                                {% else %}
+                                {{
+                                    resource.type.value
+                                    .replace(
+                                        '_',
+                                        ' '
+                                    )
+                                    .title()
+                                }}
 
-                                    <div class="font-semibold truncate">
-                                        Resource Allocation
-                                    </div>
+                                {% if not resource.is_active %}
+
+                                    — Inactive
 
                                 {% endif %}
 
+                            </option>
 
-                                <div class="opacity-90 whitespace-nowrap">
+                        {% endfor %}
 
-                                    {{ allocation.start_dt.strftime("%I:%M %p") }}
-
-                                    -
-
-                                    {{ allocation.end_dt.strftime("%I:%M %p") }}
-
-                                </div>
-
-
-                                <div class="opacity-80 text-[10px] mt-0.5">
-
-                                    {{ allocation.status.value | title }}
-
-                                </div>
-
-                            </div>
-
-                        {% endif %}
-
-                    {% endfor %}
+                    </select>
 
                 </div>
 
 
-                <!-- Timeline Explanation -->
+                <!-- DATE -->
 
-                <div class="mt-3 flex items-center justify-between">
+                <div>
 
-                    <p class="text-xs text-gray-400">
-                        Timeline shown from 08:00 AM to 06:00 PM
-                    </p>
+                    <label
+                        for="date"
+                        class="
+                            block
+                            text-sm
+                            font-semibold
+                            text-gray-700
+                            mb-2
+                        "
+                    >
+                        Date
+                    </label>
 
-                    {% if resource.buffer_minutes and resource.buffer_minutes > 0 %}
 
-                    <p class="text-xs text-gray-500">
+                    <input
+                        type="date"
+                        id="date"
+                        name="date"
 
-                        Buffer:
+                        value="{{
+                            form_data.get(
+                                'date',
+                                ''
+                            )
+                        }}"
 
-                        <span class="font-medium">
-                            {{ resource.buffer_minutes }} minutes
-                        </span>
+                        required
 
-                    </p>
+                        class="
+                            w-full
+                            px-4
+                            py-3
+                            border
+                            border-gray-300
+                            rounded-lg
+                            focus:outline-none
+                            focus:ring-2
+                            focus:ring-blue-500
+                        "
+                    >
 
+                </div>
+
+
+                <!-- START -->
+
+                <div>
+
+                    <label
+                        for="start_time"
+                        class="
+                            block
+                            text-sm
+                            font-semibold
+                            text-gray-700
+                            mb-2
+                        "
+                    >
+                        Start Time
+                    </label>
+
+
+                    <input
+                        type="time"
+                        id="start_time"
+                        name="start_time"
+
+                        value="{{
+                            form_data.get(
+                                'start_time',
+                                ''
+                            )
+                        }}"
+
+                        required
+
+                        class="
+                            w-full
+                            px-4
+                            py-3
+                            border
+                            border-gray-300
+                            rounded-lg
+                            focus:outline-none
+                            focus:ring-2
+                            focus:ring-blue-500
+                        "
+                    >
+
+                </div>
+
+
+                <!-- END -->
+
+                <div>
+
+                    <label
+                        for="end_time"
+                        class="
+                            block
+                            text-sm
+                            font-semibold
+                            text-gray-700
+                            mb-2
+                        "
+                    >
+                        End Time
+                    </label>
+
+
+                    <input
+                        type="time"
+                        id="end_time"
+                        name="end_time"
+
+                        value="{{
+                            form_data.get(
+                                'end_time',
+                                ''
+                            )
+                        }}"
+
+                        required
+
+                        class="
+                            w-full
+                            px-4
+                            py-3
+                            border
+                            border-gray-300
+                            rounded-lg
+                            focus:outline-none
+                            focus:ring-2
+                            focus:ring-blue-500
+                        "
+                    >
+
+                </div>
+
+            </div>
+
+
+            <!-- DATE ERROR -->
+
+            <p
+                id="availabilityDateError"
+                class="
+                    hidden
+                    text-sm
+                    text-red-600
+                "
+            ></p>
+
+
+            <!-- BUTTON -->
+
+            <div class="flex justify-end">
+
+                <button
+                    type="submit"
+                    id="checkAvailabilityButton"
+
+                    class="
+                        px-6
+                        py-3
+                        bg-blue-600
+                        text-white
+                        font-medium
+                        rounded-lg
+                        hover:bg-blue-700
+                        transition
+                        disabled:bg-gray-400
+                        disabled:cursor-not-allowed
+                    "
+                >
+                    Check Availability
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+
+    <!-- =====================================================
+         AVAILABILITY RESULT
+    ====================================================== -->
+
+    {% if result %}
+
+        <div
+            class="
+                rounded-xl
+                border
+                p-6
+                mb-8
+
+                {% if result.available %}
+
+                    bg-green-50
+                    border-green-200
+
+                {% else %}
+
+                    bg-red-50
+                    border-red-200
+
+                {% endif %}
+            "
+        >
+
+            <div class="flex items-start gap-4">
+
+                <div
+                    class="
+                        text-3xl
+                        leading-none
+                    "
+                >
+
+                    {% if result.available %}
+                        ✅
+                    {% else %}
+                        ❌
                     {% endif %}
 
                 </div>
 
-            </div>
+
+                <div class="flex-1">
+
+                    <div
+                        class="
+                            flex
+                            flex-col
+                            sm:flex-row
+                            sm:items-center
+                            sm:justify-between
+                            gap-3
+                        "
+                    >
+
+                        <div>
+
+                            <h2
+                                class="
+                                    text-xl
+                                    font-bold
+
+                                    {% if result.available %}
+                                        text-green-800
+                                    {% else %}
+                                        text-red-800
+                                    {% endif %}
+                                "
+                            >
+
+                                {% if result.available %}
+
+                                    Available
+
+                                {% else %}
+
+                                    Booked / Unavailable
+
+                                {% endif %}
+
+                            </h2>
 
 
-            <!-- Resource Status Legend -->
+                            <p
+                                class="
+                                    mt-1
+                                    font-medium
 
-            <div class="mt-6 flex flex-wrap items-center gap-5 text-sm">
+                                    {% if result.available %}
+                                        text-green-700
+                                    {% else %}
+                                        text-red-700
+                                    {% endif %}
+                                "
+                            >
 
-                <!-- Allocated -->
+                                {{ selected_resource.name }}
 
-                <div class="flex items-center gap-2">
+                            </p>
 
-                    <span
-                        class="w-3 h-3 rounded bg-blue-500"
-                    ></span>
-
-                    <span class="text-gray-600">
-                        Allocated
-                    </span>
-
-                </div>
-
-
-                <!-- Approved -->
-
-                <div class="flex items-center gap-2">
-
-                    <span
-                        class="w-3 h-3 rounded bg-green-500"
-                    ></span>
-
-                    <span class="text-gray-600">
-                        Approved
-                    </span>
-
-                </div>
+                        </div>
 
 
-                <!-- Available -->
+                        {% if selected_resource.is_active %}
 
-                <div class="flex items-center gap-2">
-
-                    <span
-                        class="w-3 h-3 rounded bg-gray-200"
-                    ></span>
-
-                    <span class="text-gray-600">
-                        Available
-                    </span>
-
-                </div>
-
-            </div>
-
-
-            <!-- Allocation Summary -->
-
-            {% set resource_allocations = [] %}
-
-            {% for allocation in allocations %}
-
-                {% if allocation.resource_id == resource.id %}
-
-                    {% set _ = resource_allocations.append(allocation) %}
-
-                {% endif %}
-
-            {% endfor %}
-
-
-            <div class="mt-5 pt-5 border-t border-gray-100">
-
-                <div class="flex flex-wrap gap-6 text-sm">
-
-                    <!-- Allocation Count -->
-
-                    <div>
-
-                        <span class="text-gray-500">
-                            Current allocations:
-                        </span>
-
-                        <span class="font-semibold text-gray-900">
-                            {{ resource_allocations | length }}
-                        </span>
-
-                    </div>
-
-
-                    <!-- Buffer -->
-
-                    <div>
-
-                        <span class="text-gray-500">
-                            Buffer:
-                        </span>
-
-                        <span class="font-semibold text-gray-900">
-                            {{ resource.buffer_minutes or 0 }} min
-                        </span>
-
-                    </div>
-
-
-                    <!-- Resource Status -->
-
-                    <div>
-
-                        <span class="text-gray-500">
-                            Status:
-                        </span>
-
-                        {% if resource.is_active %}
-
-                            <span class="font-semibold text-green-700">
-                                Available for allocation
+                            <span
+                                class="
+                                    inline-flex
+                                    px-3
+                                    py-1
+                                    rounded-full
+                                    text-xs
+                                    font-semibold
+                                    bg-green-100
+                                    text-green-700
+                                "
+                            >
+                                ● Active
                             </span>
 
                         {% else %}
 
-                            <span class="font-semibold text-gray-500">
-                                Not available for allocation
+                            <span
+                                class="
+                                    inline-flex
+                                    px-3
+                                    py-1
+                                    rounded-full
+                                    text-xs
+                                    font-semibold
+                                    bg-gray-200
+                                    text-gray-700
+                                "
+                            >
+                                ● Inactive
+                            </span>
+
+                        {% endif %}
+
+                    </div>
+
+
+                    <div
+                        class="
+                            mt-4
+                            text-sm
+                            text-gray-700
+                        "
+                    >
+
+                        <strong>
+                            Requested period:
+                        </strong>
+
+                        {{ result.start_dt.strftime(
+                            '%d %b %Y'
+                        ) }}
+
+                        &nbsp;
+
+                        {{ result.start_dt.strftime(
+                            '%I:%M %p'
+                        ) }}
+
+                        –
+
+                        {{ result.end_dt.strftime(
+                            '%I:%M %p'
+                        ) }}
+
+                    </div>
+
+
+                    <p
+                        class="
+                            mt-3
+                            text-sm
+
+                            {% if result.available %}
+                                text-green-800
+                            {% else %}
+                                text-red-800
+                            {% endif %}
+                        "
+                    >
+                        {{ result.reason }}
+                    </p>
+
+
+                    <!-- =========================================
+                         CONFLICTS
+                    ========================================== -->
+
+                    {% if result.conflicts %}
+
+                        <div class="mt-5">
+
+                            <h3
+                                class="
+                                    text-sm
+                                    font-semibold
+                                    text-red-900
+                                    mb-3
+                                "
+                            >
+                                Conflicting Booking(s)
+                            </h3>
+
+
+                            <div
+                                class="
+                                    space-y-3
+                                "
+                            >
+
+                                {% for allocation
+                                    in result.conflicts
+                                %}
+
+                                    <div
+                                        class="
+                                            bg-white
+                                            border
+                                            border-red-200
+                                            rounded-lg
+                                            p-4
+                                        "
+                                    >
+
+                                        <div
+                                            class="
+                                                flex
+                                                flex-col
+                                                sm:flex-row
+                                                sm:justify-between
+                                                gap-2
+                                            "
+                                        >
+
+                                            <div>
+
+                                                <p
+                                                    class="
+                                                        font-semibold
+                                                        text-gray-900
+                                                    "
+                                                >
+
+                                                    {{
+                                                        allocation.event.name
+                                                        if allocation.event
+                                                        else
+                                                        'Allocation #'
+                                                        ~ allocation.id
+                                                    }}
+
+                                                </p>
+
+                                                <p
+                                                    class="
+                                                        text-sm
+                                                        text-gray-600
+                                                        mt-1
+                                                    "
+                                                >
+
+                                                    {{
+                                                        allocation.start_dt.strftime(
+                                                            '%d %b %Y, %I:%M %p'
+                                                        )
+                                                    }}
+
+                                                    –
+
+                                                    {{
+                                                        allocation.end_dt.strftime(
+                                                            '%I:%M %p'
+                                                        )
+                                                    }}
+
+                                                </p>
+
+                                            </div>
+
+
+                                            <span
+                                                class="
+                                                    inline-flex
+                                                    self-start
+                                                    px-2.5
+                                                    py-1
+                                                    rounded-full
+                                                    text-xs
+                                                    font-medium
+                                                    bg-red-100
+                                                    text-red-700
+                                                "
+                                            >
+
+                                                {{
+                                                    allocation.status.value
+                                                    | title
+                                                }}
+
+                                            </span>
+
+                                        </div>
+
+                                    </div>
+
+                                {% endfor %}
+
+                            </div>
+
+                        </div>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+    {% endif %}
+
+
+    <!-- =====================================================
+         RESOURCE DETAILS + BOOKINGS
+    ====================================================== -->
+
+    {% if selected_resource %}
+
+        <div
+            class="
+                grid
+                grid-cols-1
+                lg:grid-cols-3
+                gap-6
+            "
+        >
+
+
+            <!-- RESOURCE DETAILS -->
+
+            <div
+                class="
+                    bg-white
+                    border
+                    border-gray-200
+                    rounded-xl
+                    shadow-sm
+                    p-6
+                "
+            >
+
+                <h2
+                    class="
+                        text-lg
+                        font-semibold
+                        text-gray-900
+                        mb-5
+                    "
+                >
+                    Resource Details
+                </h2>
+
+
+                <div class="space-y-4 text-sm">
+
+
+                    <!-- NAME -->
+
+                    <div
+                        class="
+                            flex
+                            justify-between
+                            gap-4
+                        "
+                    >
+
+                        <span class="text-gray-500">
+                            Name
+                        </span>
+
+                        <span
+                            class="
+                                font-medium
+                                text-gray-900
+                                text-right
+                            "
+                        >
+                            {{ selected_resource.name }}
+                        </span>
+
+                    </div>
+
+
+                    <!-- TYPE -->
+
+                    <div
+                        class="
+                            flex
+                            justify-between
+                            gap-4
+                        "
+                    >
+
+                        <span class="text-gray-500">
+                            Type
+                        </span>
+
+                        <span
+                            class="
+                                font-medium
+                                text-gray-900
+                            "
+                        >
+                            {{
+                                selected_resource.type.value
+                                .replace(
+                                    '_',
+                                    ' '
+                                )
+                                .title()
+                            }}
+                        </span>
+
+                    </div>
+
+
+                    <!-- CAPACITY -->
+
+                    <div
+                        class="
+                            flex
+                            justify-between
+                            gap-4
+                        "
+                    >
+
+                        <span class="text-gray-500">
+                            Capacity
+                        </span>
+
+                        <span
+                            class="
+                                font-medium
+                                text-gray-900
+                            "
+                        >
+
+                            {{
+                                selected_resource.capacity
+                                if
+                                selected_resource.capacity
+                                is not none
+                                else
+                                'N/A'
+                            }}
+
+                        </span>
+
+                    </div>
+
+
+                    <!-- BUFFER -->
+
+                    <div
+                        class="
+                            flex
+                            justify-between
+                            gap-4
+                        "
+                    >
+
+                        <span class="text-gray-500">
+                            Buffer
+                        </span>
+
+                        <span
+                            class="
+                                font-medium
+                                text-gray-900
+                            "
+                        >
+
+                            {{
+                                selected_resource.buffer_minutes
+                                or
+                                0
+                            }}
+                            min
+
+                        </span>
+
+                    </div>
+
+
+                    <!-- STATUS -->
+
+                    <div
+                        class="
+                            flex
+                            justify-between
+                            gap-4
+                        "
+                    >
+
+                        <span class="text-gray-500">
+                            Status
+                        </span>
+
+
+                        {% if selected_resource.is_active %}
+
+                            <span
+                                class="
+                                    font-semibold
+                                    text-green-700
+                                "
+                            >
+                                ● Active
+                            </span>
+
+                        {% else %}
+
+                            <span
+                                class="
+                                    font-semibold
+                                    text-gray-600
+                                "
+                            >
+                                ● Inactive
                             </span>
 
                         {% endif %}
@@ -410,36 +972,315 @@ Availability — ResourceHub
 
             </div>
 
+
+            <!-- CURRENT BOOKINGS -->
+
+            <div
+                class="
+                    lg:col-span-2
+                    bg-white
+                    border
+                    border-gray-200
+                    rounded-xl
+                    shadow-sm
+                    p-6
+                "
+            >
+
+                <div
+                    class="
+                        flex
+                        items-center
+                        justify-between
+                        gap-4
+                        mb-4
+                    "
+                >
+
+                    <div>
+
+                        <h2
+                            class="
+                                text-lg
+                                font-semibold
+                                text-gray-900
+                            "
+                        >
+                            Current Bookings
+                        </h2>
+
+                        <p
+                            class="
+                                text-sm
+                                text-gray-500
+                                mt-1
+                            "
+                        >
+                            Active allocations only.
+                            Cancelled allocations do not
+                            block availability.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                {% if bookings %}
+
+                    <div class="overflow-x-auto">
+
+                        <table class="w-full text-sm">
+
+                            <thead>
+
+                                <tr
+                                    class="
+                                        text-left
+                                        border-b
+                                        border-gray-200
+                                    "
+                                >
+
+                                    <th
+                                        class="
+                                            py-3
+                                            pr-4
+                                            font-semibold
+                                            text-gray-700
+                                        "
+                                    >
+                                        Event
+                                    </th>
+
+
+                                    <th
+                                        class="
+                                            py-3
+                                            pr-4
+                                            font-semibold
+                                            text-gray-700
+                                        "
+                                    >
+                                        Time
+                                    </th>
+
+
+                                    <th
+                                        class="
+                                            py-3
+                                            font-semibold
+                                            text-gray-700
+                                        "
+                                    >
+                                        Status
+                                    </th>
+
+                                </tr>
+
+                            </thead>
+
+
+                            <tbody>
+
+                                {% for allocation
+                                    in bookings
+                                %}
+
+                                    <tr
+                                        class="
+                                            border-b
+                                            border-gray-100
+                                            last:border-0
+                                        "
+                                    >
+
+                                        <td
+                                            class="
+                                                py-3
+                                                pr-4
+                                                font-medium
+                                                text-gray-900
+                                            "
+                                        >
+
+                                            {{
+                                                allocation.event.name
+                                                if allocation.event
+                                                else
+                                                'Allocation #'
+                                                ~ allocation.id
+                                            }}
+
+                                        </td>
+
+
+                                        <td
+                                            class="
+                                                py-3
+                                                pr-4
+                                                text-gray-600
+                                                whitespace-nowrap
+                                            "
+                                        >
+
+                                            {{
+                                                allocation.start_dt.strftime(
+                                                    '%d %b %Y, %I:%M %p'
+                                                )
+                                            }}
+
+                                            –
+
+                                            {{
+                                                allocation.end_dt.strftime(
+                                                    '%I:%M %p'
+                                                )
+                                            }}
+
+                                        </td>
+
+
+                                        <td class="py-3">
+
+                                            <span
+                                                class="
+                                                    inline-flex
+                                                    px-2.5
+                                                    py-1
+                                                    rounded-full
+                                                    text-xs
+                                                    font-medium
+
+                                                    {% if
+                                                        allocation.status.value
+                                                        ==
+                                                        'ALLOCATED'
+                                                    %}
+
+                                                        bg-blue-100
+                                                        text-blue-700
+
+                                                    {% else %}
+
+                                                        bg-purple-100
+                                                        text-purple-700
+
+                                                    {% endif %}
+                                                "
+                                            >
+
+                                                {{
+                                                    allocation.status.value
+                                                    | title
+                                                }}
+
+                                            </span>
+
+                                        </td>
+
+                                    </tr>
+
+                                {% endfor %}
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                {% else %}
+
+                    <div
+                        class="
+                            py-10
+                            text-center
+                            text-gray-500
+                        "
+                    >
+
+                        No current bookings for this resource.
+
+                    </div>
+
+                {% endif %}
+
+            </div>
+
         </div>
 
-    </div>
+    {% endif %}
 
-    {% endfor %}
+
+    <!-- =====================================================
+         EMPTY STATES
+    ====================================================== -->
+
+    {% if not selected_resource and resources %}
+
+        <div
+            class="
+                bg-white
+                border
+                border-gray-200
+                rounded-xl
+                p-8
+                text-center
+                mt-6
+            "
+        >
+
+            <div class="text-3xl mb-3">
+                📅
+            </div>
+
+            <h2
+                class="
+                    text-lg
+                    font-semibold
+                    text-gray-900
+                "
+            >
+                Select a resource to begin
+            </h2>
+
+            <p
+                class="
+                    text-gray-500
+                    mt-1
+                "
+            >
+                Choose a resource, date and time,
+                then click Check Availability.
+            </p>
+
+        </div>
+
+    {% endif %}
+
+
+    {% if not resources %}
+
+        <div
+            class="
+                bg-yellow-50
+                border
+                border-yellow-200
+                rounded-xl
+                p-6
+                text-yellow-800
+                mt-6
+            "
+        >
+
+            No resources exist yet.
+            Create a resource before checking availability.
+
+        </div>
+
+    {% endif %}
+
 
 </div>
-
-
-{% else %}
-
-<!-- Empty State -->
-
-<div class="bg-white rounded-xl border border-gray-200
-            p-12 text-center">
-
-    <div class="text-5xl">
-        🗓️
-    </div>
-
-    <h2 class="mt-4 text-xl font-semibold text-gray-900">
-        No resources available
-    </h2>
-
-    <p class="mt-2 text-gray-500">
-        Add resources to view their availability.
-    </p>
-
-</div>
-
-{% endif %}
 
 {% endblock %}
