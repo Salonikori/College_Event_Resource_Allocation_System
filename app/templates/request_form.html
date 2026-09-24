@@ -1,32 +1,58 @@
 {% extends "base.html" %}
 
-{% block title %}New Resource Request - ResourceHub{% endblock %}
+{% block title %}
+    {% if resource %}
+        Edit Resource - ResourceHub
+    {% else %}
+        Add Resource - ResourceHub
+    {% endif %}
+{% endblock %}
 
 {% block content %}
 
 <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
     <!-- Header -->
+
     <div class="mb-8">
 
-        <a href="{{ url_for('requests.requests') }}"
-           class="text-blue-600 hover:text-blue-800 text-sm font-medium">
-            ← Back to Requests
+        <a
+            href="{{ url_for('resources.resources') }}"
+            class="text-blue-600 hover:text-blue-800
+                   text-sm font-medium"
+        >
+            ← Back to Resources
         </a>
 
         <h1 class="text-3xl font-bold text-gray-900 mt-4">
-            New Resource Request
+
+            {% if resource %}
+                Edit Resource
+            {% else %}
+                Add Resource
+            {% endif %}
+
         </h1>
 
         <p class="mt-2 text-gray-600">
-            Request resources for an upcoming college event.
+
+            {% if resource %}
+                Update the resource information below.
+            {% else %}
+                Add a hall, classroom, laboratory,
+                equipment, or other resource.
+            {% endif %}
+
         </p>
 
     </div>
 
 
     <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
+
+    {% with messages = get_flashed_messages(
+        with_categories=true
+    ) %}
 
         {% if messages %}
 
@@ -34,16 +60,25 @@
 
                 {% for category, message in messages %}
 
-                    <div class="px-4 py-3 rounded-lg
+                    <div
+                        class="px-4 py-3 rounded-lg
+
                         {% if category == 'success' %}
-                            bg-green-100 text-green-800 border border-green-200
+                            bg-green-100 text-green-800
+                            border border-green-200
+
                         {% elif category == 'error' %}
-                            bg-red-100 text-red-800 border border-red-200
+                            bg-red-100 text-red-800
+                            border border-red-200
+
                         {% else %}
-                            bg-blue-100 text-blue-800 border border-blue-200
-                        {% endif %}
-                    ">
+                            bg-blue-100 text-blue-800
+                            border border-blue-200
+                        {% endif %}"
+                    >
+
                         {{ message }}
+
                     </div>
 
                 {% endfor %}
@@ -55,85 +90,85 @@
     {% endwith %}
 
 
-    <!-- Request Form -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sm:p-8">
+    <!-- Form -->
 
-        <form method="POST"
-              action="{{ url_for('requests.create_request') }}"
-              class="space-y-6">
+    <div
+        class="bg-white rounded-xl shadow-sm
+               border border-gray-200
+               p-6 sm:p-8"
+    >
+
+        <form
+            method="POST"
+            action="{% if resource %}
+                        {{ url_for(
+                            'resources.edit_resource',
+                            resource_id=resource.id
+                        ) }}
+                    {% else %}
+                        {{ url_for(
+                            'resources.create_resource'
+                        ) }}
+                    {% endif %}"
+            class="space-y-6"
+        >
 
 
-            <!-- Event -->
+            <!-- Resource Name -->
+
             <div>
 
-                <label for="event_id"
-                       class="block text-sm font-semibold text-gray-700 mb-2">
-                    Event
+                <label
+                    for="name"
+                    class="block text-sm font-semibold
+                           text-gray-700 mb-2"
+                >
+                    Resource Name
                 </label>
 
-                {% if events %}
-
-                    <select
-                        id="event_id"
-                        name="event_id"
-                        required
-                        class="w-full px-4 py-3 border border-gray-300 rounded-lg
-                               bg-white focus:outline-none focus:ring-2
-                               focus:ring-blue-500 focus:border-blue-500"
-                    >
-
-                        <option value="">
-                            Select an event
-                        </option>
-
-                        {% for event in events %}
-
-                            <option value="{{ event.id }}">
-
-                                {{ event.name }}
-                                —
-                                {{ event.start_dt.strftime('%d %b %Y, %I:%M %p') }}
-
-                            </option>
-
-                        {% endfor %}
-
-                    </select>
-
-                {% else %}
-
-                    <div class="p-4 bg-yellow-50 border border-yellow-200
-                                rounded-lg text-yellow-800">
-
-                        No events are available.
-
-                        <a href="{{ url_for('events.create_event') }}"
-                           class="font-medium underline ml-1">
-                            Create an event first.
-                        </a>
-
-                    </div>
-
-                {% endif %}
+                <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    required
+                    maxlength="150"
+                    value="{{ form_data.get('name', '') }}"
+                    placeholder="e.g. Seminar Hall A"
+                    class="w-full px-4 py-3
+                           border border-gray-300
+                           rounded-lg
+                           focus:outline-none
+                           focus:ring-2
+                           focus:ring-blue-500
+                           focus:border-blue-500"
+                >
 
             </div>
 
 
             <!-- Resource Type -->
+
             <div>
 
-                <label for="resource_type"
-                       class="block text-sm font-semibold text-gray-700 mb-2">
+                <label
+                    for="type"
+                    class="block text-sm font-semibold
+                           text-gray-700 mb-2"
+                >
                     Resource Type
                 </label>
 
                 <select
-                    id="resource_type"
-                    name="resource_type"
+                    id="type"
+                    name="type"
                     required
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg
-                           bg-white focus:outline-none focus:ring-2
-                           focus:ring-blue-500 focus:border-blue-500"
+                    class="w-full px-4 py-3
+                           border border-gray-300
+                           rounded-lg bg-white
+                           focus:outline-none
+                           focus:ring-2
+                           focus:ring-blue-500
+                           focus:border-blue-500"
                 >
 
                     <option value="">
@@ -142,8 +177,16 @@
 
                     {% for resource_type in resource_types %}
 
-                        <option value="{{ resource_type.value }}">
-                            {{ resource_type.value.replace('_', ' ').title() }}
+                        <option
+                            value="{{ resource_type.value }}"
+                            {% if form_data.get('type', '') ==
+                                  resource_type.value %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ resource_type.value
+                                .replace('_', ' ')
+                                .title() }}
                         </option>
 
                     {% endfor %}
@@ -153,122 +196,207 @@
             </div>
 
 
-            <!-- Quantity -->
+            <!-- Capacity -->
+
             <div>
 
-                <label for="quantity"
-                       class="block text-sm font-semibold text-gray-700 mb-2">
-                    Quantity
+                <label
+                    for="capacity"
+                    class="block text-sm font-semibold
+                           text-gray-700 mb-2"
+                >
+                    Capacity
+
+                    <span class="font-normal text-gray-500">
+                        (optional)
+                    </span>
+
                 </label>
 
                 <input
                     type="number"
-                    id="quantity"
-                    name="quantity"
-                    min="1"
-                    value="1"
-                    required
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg
-                           focus:outline-none focus:ring-2 focus:ring-blue-500
+                    id="capacity"
+                    name="capacity"
+                    min="0"
+                    value="{{ form_data.get('capacity', '') }}"
+                    placeholder="e.g. 100"
+                    class="w-full px-4 py-3
+                           border border-gray-300
+                           rounded-lg
+                           focus:outline-none
+                           focus:ring-2
+                           focus:ring-blue-500
                            focus:border-blue-500"
                 >
 
                 <p class="mt-2 text-sm text-gray-500">
-                    Number of resources of this type required.
+                    For equipment, this can be left empty.
                 </p>
 
             </div>
 
 
-            <!-- Requested Start -->
+            <!-- Buffer Time -->
+
             <div>
 
-                <label for="requested_start"
-                       class="block text-sm font-semibold text-gray-700 mb-2">
-                    Requested Start
+                <label
+                    for="buffer_minutes"
+                    class="block text-sm font-semibold
+                           text-gray-700 mb-2"
+                >
+                    Buffer Time
+
+                    <span class="font-normal text-gray-500">
+                        (minutes)
+                    </span>
+
                 </label>
 
                 <input
-                    type="datetime-local"
-                    id="requested_start"
-                    name="requested_start"
-                    required
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg
-                           focus:outline-none focus:ring-2 focus:ring-blue-500
+                    type="number"
+                    id="buffer_minutes"
+                    name="buffer_minutes"
+                    min="0"
+                    value="{{ form_data.get(
+                        'buffer_minutes',
+                        0
+                    ) }}"
+                    placeholder="0"
+                    class="w-full px-4 py-3
+                           border border-gray-300
+                           rounded-lg
+                           focus:outline-none
+                           focus:ring-2
+                           focus:ring-blue-500
                            focus:border-blue-500"
                 >
+
+                <p class="mt-2 text-sm text-gray-500">
+                    Extra time required before or after
+                    using this resource.
+                </p>
 
             </div>
 
 
-            <!-- Requested End -->
-            <div>
+            <!-- Current Status -->
 
-                <label for="requested_end"
-                       class="block text-sm font-semibold text-gray-700 mb-2">
-                    Requested End
-                </label>
+            {% if resource %}
 
-                <input
-                    type="datetime-local"
-                    id="requested_end"
-                    name="requested_end"
-                    required
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg
-                           focus:outline-none focus:ring-2 focus:ring-blue-500
-                           focus:border-blue-500"
+                <div
+                    class="p-4 rounded-lg
+                           {% if resource.is_active %}
+                               bg-green-50 border border-green-200
+                           {% else %}
+                               bg-gray-50 border border-gray-200
+                           {% endif %}"
                 >
 
-            </div>
+                    <div class="flex items-center gap-3">
 
+                        {% if resource.is_active %}
 
-            <!-- Information -->
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <span
+                                class="inline-flex items-center
+                                       px-3 py-1 rounded-full
+                                       text-xs font-medium
+                                       bg-green-100
+                                       text-green-800"
+                            >
+                                Active
+                            </span>
 
-                <div class="flex gap-3">
+                            <span class="text-sm text-gray-600">
+                                This resource is currently active.
+                            </span>
 
-                    <div class="text-blue-600 text-lg">
-                        ℹ
+                        {% else %}
+
+                            <span
+                                class="inline-flex items-center
+                                       px-3 py-1 rounded-full
+                                       text-xs font-medium
+                                       bg-gray-200
+                                       text-gray-700"
+                            >
+                                Inactive
+                            </span>
+
+                            <span class="text-sm text-gray-600">
+                                This resource is currently inactive.
+                            </span>
+
+                        {% endif %}
+
                     </div>
 
-                    <div>
-
-                        <h3 class="font-semibold text-blue-900">
-                            Request Status
-                        </h3>
-
-                        <p class="text-sm text-blue-800 mt-1">
-                            New requests are created with
-                            <strong>Pending</strong> status and can be reviewed
-                            from the Approvals page.
-                        </p>
-
-                    </div>
+                    <p class="mt-2 text-sm text-gray-500">
+                        Use Activate/Deactivate from the
+                        Resources page to change availability
+                        for new allocations.
+                    </p>
 
                 </div>
 
-            </div>
+            {% else %}
+
+                <div
+                    class="flex items-center gap-3
+                           p-4 rounded-lg
+                           bg-green-50 border border-green-200"
+                >
+
+                    <span
+                        class="inline-flex items-center
+                               px-3 py-1 rounded-full
+                               text-xs font-medium
+                               bg-green-100 text-green-800"
+                    >
+                        Active
+                    </span>
+
+                    <span class="text-sm text-gray-600">
+                        New resources are active by default.
+                    </span>
+
+                </div>
+
+            {% endif %}
 
 
             <!-- Buttons -->
-            <div class="flex flex-col sm:flex-row gap-3 pt-4">
+
+            <div
+                class="flex flex-col sm:flex-row
+                       gap-3 pt-4
+                       border-t border-gray-200"
+            >
 
                 <button
                     type="submit"
-                    {% if not events %}disabled{% endif %}
-                    class="flex-1 px-5 py-3 bg-blue-600 text-white
-                           font-medium rounded-lg hover:bg-blue-700
-                           transition shadow-sm
-                           disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    class="flex-1 px-5 py-3
+                           bg-blue-600 text-white
+                           font-medium rounded-lg
+                           hover:bg-blue-700
+                           transition shadow-sm"
                 >
-                    Submit Request
+
+                    {% if resource %}
+                        Save Changes
+                    {% else %}
+                        Add Resource
+                    {% endif %}
+
                 </button>
 
                 <a
-                    href="{{ url_for('requests.requests') }}"
+                    href="{{ url_for('resources.resources') }}"
                     class="flex-1 px-5 py-3 text-center
-                           bg-gray-100 text-gray-700 font-medium
-                           rounded-lg hover:bg-gray-200 transition"
+                           bg-gray-100 text-gray-700
+                           font-medium rounded-lg
+                           hover:bg-gray-200
+                           transition"
                 >
                     Cancel
                 </a>
