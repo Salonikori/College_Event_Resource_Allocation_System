@@ -2,6 +2,7 @@
 <html lang="en">
 
 <head>
+
     <meta charset="UTF-8">
 
     <meta
@@ -11,80 +12,160 @@
 
     <title>
         {% block title %}
-        ResourceHub
+            ResourceHub
         {% endblock %}
     </title>
 
+
     <script src="https://cdn.tailwindcss.com"></script>
+
 
     {% block head %}
     {% endblock %}
+
 </head>
 
-<body class="bg-gray-50 text-gray-900">
 
-    <!-- ===================================================== -->
-    <!-- NAVIGATION -->
-    <!-- ===================================================== -->
+<body
+    class="
+        bg-gray-50
+        text-gray-900
+        min-h-screen
+    "
+>
 
-    <nav class="bg-white border-b border-gray-200">
 
-        <div class="max-w-7xl mx-auto px-6">
+    <!-- =====================================================
+         NAVIGATION
+    ====================================================== -->
 
-            <div class="h-16 flex items-center justify-between">
+    <nav
+        class="
+            bg-white
+            border-b
+            border-gray-200
+        "
+    >
 
-                <!-- Logo -->
+        <div
+            class="
+                max-w-7xl
+                mx-auto
+                px-4
+                sm:px-6
+                lg:px-8
+            "
+        >
+
+            <div
+                class="
+                    min-h-16
+                    py-3
+                    flex
+                    flex-col
+                    lg:flex-row
+                    lg:items-center
+                    lg:justify-between
+                    gap-4
+                "
+            >
+
+
+                <!-- LOGO -->
 
                 <a
-                    href="/"
-                    class="text-xl font-bold text-blue-600"
+                    href="{{ url_for('dashboard.dashboard') }}"
+                    class="
+                        text-xl
+                        font-bold
+                        text-blue-600
+                        whitespace-nowrap
+                    "
                 >
                     ResourceHub
                 </a>
 
 
-                <!-- Navigation links -->
+                <!-- NAVIGATION -->
 
-                <div class="flex items-center gap-6">
+                <div
+                    class="
+                        flex
+                        flex-wrap
+                        items-center
+                        gap-x-5
+                        gap-y-2
+                        text-sm
+                    "
+                >
 
                     <a
-                        href="/"
-                        class="text-gray-600 hover:text-blue-600"
+                        href="{{ url_for('dashboard.dashboard') }}"
+                        class="
+                            text-gray-600
+                            hover:text-blue-600
+                            transition
+                        "
                     >
                         Dashboard
                     </a>
 
+
                     <a
-                        href="/events"
-                        class="text-gray-600 hover:text-blue-600"
+                        href="{{ url_for('events.events') }}"
+                        class="
+                            text-gray-600
+                            hover:text-blue-600
+                            transition
+                        "
                     >
                         Events
                     </a>
 
+
                     <a
-                        href="/resources"
-                        class="text-gray-600 hover:text-blue-600"
+                        href="{{ url_for('resources.resources') }}"
+                        class="
+                            text-gray-600
+                            hover:text-blue-600
+                            transition
+                        "
                     >
                         Resources
                     </a>
 
+
                     <a
-                        href="/requests"
-                        class="text-gray-600 hover:text-blue-600"
+                        href="{{ url_for('requests.requests') }}"
+                        class="
+                            text-gray-600
+                            hover:text-blue-600
+                            transition
+                        "
                     >
                         Requests
                     </a>
 
+
                     <a
-                        href="/availability"
-                        class="text-gray-600 hover:text-blue-600"
+                        href="{{ url_for('availability.availability') }}"
+                        class="
+                            text-gray-600
+                            hover:text-blue-600
+                            transition
+                        "
                     >
                         Availability
                     </a>
 
+
                     <a
-                        href="/approvals"
-                        class="text-gray-600 hover:text-blue-600"
+                        href="{{ url_for('admin.approvals') }}"
+                        class="
+                            text-gray-600
+                            hover:text-blue-600
+                            transition
+                        "
                     >
                         Approvals
                     </a>
@@ -98,11 +179,103 @@
     </nav>
 
 
-    <!-- ===================================================== -->
-    <!-- MAIN CONTENT -->
-    <!-- ===================================================== -->
+    <!-- =====================================================
+         GLOBAL FLASH MESSAGES
+    ====================================================== -->
 
-    <main class="max-w-7xl mx-auto px-6 py-8">
+    <div
+        class="
+            max-w-7xl
+            mx-auto
+            px-4
+            sm:px-6
+            lg:px-8
+            pt-5
+        "
+    >
+
+        {% with messages =
+            get_flashed_messages(
+                with_categories=true
+            )
+        %}
+
+            {% if messages %}
+
+                <div
+                    class="
+                        space-y-3
+                    "
+                >
+
+                    {% for category, message
+                        in messages
+                    %}
+
+                        <div
+                            class="
+                                px-4
+                                py-3
+                                rounded-lg
+                                border
+
+                                {% if category == 'error' %}
+
+                                    bg-red-50
+                                    text-red-800
+                                    border-red-200
+
+                                {% elif category == 'success' %}
+
+                                    bg-green-50
+                                    text-green-800
+                                    border-green-200
+
+                                {% elif category == 'warning' %}
+
+                                    bg-yellow-50
+                                    text-yellow-800
+                                    border-yellow-200
+
+                                {% else %}
+
+                                    bg-blue-50
+                                    text-blue-800
+                                    border-blue-200
+
+                                {% endif %}
+                            "
+                        >
+
+                            {{ message }}
+
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+
+            {% endif %}
+
+        {% endwith %}
+
+    </div>
+
+
+    <!-- =====================================================
+         MAIN CONTENT
+    ====================================================== -->
+
+    <main
+        class="
+            max-w-7xl
+            mx-auto
+            px-4
+            sm:px-6
+            lg:px-8
+            py-8
+        "
+    >
 
         {% block content %}
         {% endblock %}
@@ -110,20 +283,50 @@
     </main>
 
 
-    <!-- ===================================================== -->
-    <!-- FOOTER -->
-    <!-- ===================================================== -->
+    <!-- =====================================================
+         FOOTER
+    ====================================================== -->
 
-    <footer class="border-t border-gray-200 bg-white mt-12">
+    <footer
+        class="
+            border-t
+            border-gray-200
+            bg-white
+            mt-12
+        "
+    >
 
         <div
-            class="max-w-7xl mx-auto px-6 py-6
-                   text-sm text-gray-500"
+            class="
+                max-w-7xl
+                mx-auto
+                px-4
+                sm:px-6
+                lg:px-8
+                py-6
+                text-sm
+                text-gray-500
+            "
         >
-            ResourceHub — College Event Resource Allocation System
+
+            ResourceHub —
+            College Event Resource Allocation System
+
         </div>
 
     </footer>
+
+
+    <!-- =====================================================
+         APPLICATION JAVASCRIPT
+    ====================================================== -->
+
+    <script
+        src="{{ url_for(
+            'static',
+            filename='app.js'
+        ) }}"
+    ></script>
 
 
     {% block scripts %}

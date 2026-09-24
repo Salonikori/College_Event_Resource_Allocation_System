@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from flask import (
     Blueprint,
     flash,
@@ -10,13 +8,11 @@ from flask import (
 )
 
 from app import db
+
 from app.models import (
-    Allocation,
-    AllocationStatus,
     Resource,
     ResourceType,
 )
-from app.services.booking import find_conflicts
 
 
 resources_bp = Blueprint(
@@ -36,12 +32,6 @@ def parse_resource_form():
 
     Returns:
         (data, error)
-
-    data:
-        Dictionary containing validated values.
-
-    error:
-        Error message string or None.
     """
 
     name = request.form.get(
@@ -65,20 +55,24 @@ def parse_resource_form():
     ).strip()
 
     # --------------------------------------------------------
-    # Name
+    # NAME
     # --------------------------------------------------------
 
     if not name:
 
-        return None, "Resource name is required."
+        return None, (
+            "Resource name is required."
+        )
 
     # --------------------------------------------------------
-    # Resource type
+    # TYPE
     # --------------------------------------------------------
 
     if not resource_type:
 
-        return None, "Resource type is required."
+        return None, (
+            "Resource type is required."
+        )
 
     try:
 
@@ -88,10 +82,12 @@ def parse_resource_form():
 
     except ValueError:
 
-        return None, "Invalid resource type selected."
+        return None, (
+            "Invalid resource type selected."
+        )
 
     # --------------------------------------------------------
-    # Capacity
+    # CAPACITY
     # --------------------------------------------------------
 
     if capacity:
@@ -119,7 +115,7 @@ def parse_resource_form():
         capacity_value = None
 
     # --------------------------------------------------------
-    # Buffer time
+    # BUFFER
     # --------------------------------------------------------
 
     if buffer_minutes:
@@ -208,7 +204,9 @@ def create_resource():
             type=data["type"],
             capacity=data["capacity"],
             is_active=True,
-            buffer_minutes=data["buffer_minutes"],
+            buffer_minutes=data[
+                "buffer_minutes"
+            ],
         )
 
         db.session.add(resource)
@@ -233,11 +231,7 @@ def create_resource():
 
 
 # ============================================================
-# EDIT EXISTING RESOURCE
-#
-# IMPORTANT:
-# This does NOT create a new Resource.
-# It updates the existing database row.
+# EDIT RESOURCE
 # ============================================================
 
 @resources_bp.route(
@@ -251,10 +245,6 @@ def edit_resource(resource_id):
         resource_id,
     )
 
-    # --------------------------------------------------------
-    # Resource not found
-    # --------------------------------------------------------
-
     if resource is None:
 
         flash(
@@ -267,10 +257,6 @@ def edit_resource(resource_id):
                 "resources.resources"
             )
         )
-
-    # --------------------------------------------------------
-    # Validate submitted data
-    # --------------------------------------------------------
 
     data, error = parse_resource_form()
 
@@ -288,7 +274,7 @@ def edit_resource(resource_id):
         )
 
     # --------------------------------------------------------
-    # UPDATE EXISTING RESOURCE
+    # Update existing resource.
     # --------------------------------------------------------
 
     resource.name = data["name"]
@@ -301,15 +287,24 @@ def edit_resource(resource_id):
         data["buffer_minutes"]
     )
 
-    # IMPORTANT:
-    #
-    # We do NOT write:
-    #
-    # resource = Resource(...)
-    #
-    # We modify the existing object.
+    try:
 
-    db.session.commit()
+        db.session.commit()
+
+    except Exception:
+
+        db.session.rollback()
+
+        flash(
+            "Unable to update the resource.",
+            "error",
+        )
+
+        return redirect(
+            url_for(
+                "resources.resources"
+            )
+        )
 
     flash(
         f"{resource.name} updated successfully.",
@@ -366,7 +361,24 @@ def activate_resource(resource_id):
 
     resource.is_active = True
 
-    db.session.commit()
+    try:
+
+        db.session.commit()
+
+    except Exception:
+
+        db.session.rollback()
+
+        flash(
+            "Unable to activate the resource.",
+            "error",
+        )
+
+        return redirect(
+            url_for(
+                "resources.resources"
+            )
+        )
 
     flash(
         f"{resource.name} has been activated.",
@@ -424,15 +436,31 @@ def deactivate_resource(resource_id):
     # --------------------------------------------------------
     # IMPORTANT:
     #
-    # We do NOT delete existing allocations.
+    # Existing allocations are NOT deleted.
     #
-    # Deactivation only prevents the resource from being
-    # used for NEW allocations.
+    # Deactivation only prevents NEW allocations.
     # --------------------------------------------------------
 
     resource.is_active = False
 
-    db.session.commit()
+    try:
+
+        db.session.commit()
+
+    except Exception:
+
+        db.session.rollback()
+
+        flash(
+            "Unable to deactivate the resource.",
+            "error",
+        )
+
+        return redirect(
+            url_for(
+                "resources.resources"
+            )
+        )
 
     flash(
         (
@@ -450,53 +478,29 @@ def deactivate_resource(resource_id):
 
 
 # ============================================================
-# RESOURCE AVAILABILITY TIMELINE
+# LEGACY AVAILABILITY REDIRECT
+# ============================================================
+#
+# The application now has a dedicated availability blueprint:
+#
+#     /availability/
+#
+# Keep these routes only as compatibility redirects so old
+# links do not cause template errors.
 # ============================================================
 
 @resources_bp.route(
-    "/availability"
+    "/availability",
+    methods=["GET"],
 )
 def availability():
 
-    resources = (
-        Resource.query
-        .order_by(
-            Resource.name.asc()
+    return redirect(
+        url_for(
+            "availability.availability"
         )
-        .all()
     )
 
-    # --------------------------------------------------------
-    # Only active allocations are shown.
-    # Cancelled allocations are excluded.
-    # --------------------------------------------------------
-
-    allocations = (
-        Allocation.query
-        .filter(
-            Allocation.status.in_(
-                [
-                    AllocationStatus.ALLOCATED,
-                    AllocationStatus.APPROVED,
-                ]
-            )
-        )
-        .order_by(
-            Allocation.start_dt.asc()
-        )
-        .all()
-    )
-
-    return render_template(
-        "availability.html",
-        resources=resources,
-        allocations=allocations,
-    )
-
-
-# ============================================================
-# CHECK RESOURCE AVAILABILITY
-# ============================================================
 
 @resources_bp.route(
     "/availability/check",
@@ -504,269 +508,8 @@ def availability():
 )
 def check_availability():
 
-    resources = (
-        Resource.query
-        .filter(
-            Resource.is_active.is_(True)
+    return redirect(
+        url_for(
+            "availability.availability"
         )
-        .order_by(
-            Resource.name.asc()
-        )
-        .all()
-    )
-
-    availability_results = []
-
-    if request.method == "POST":
-
-        resource_type = request.form.get(
-            "resource_type",
-            "",
-        ).strip()
-
-        start_value = request.form.get(
-            "start_dt",
-            "",
-        ).strip()
-
-        end_value = request.form.get(
-            "end_dt",
-            "",
-        ).strip()
-
-        attendance = request.form.get(
-            "attendance",
-            "",
-        ).strip()
-
-        # ----------------------------------------------------
-        # Resource type
-        # ----------------------------------------------------
-
-        if not resource_type:
-
-            flash(
-                "Please select a resource type.",
-                "error",
-            )
-
-            return render_template(
-                "availability_check.html",
-                resources=resources,
-                resource_types=ResourceType,
-                availability_results=[],
-            )
-
-        try:
-
-            resource_type_enum = ResourceType(
-                resource_type
-            )
-
-        except ValueError:
-
-            flash(
-                "Invalid resource type selected.",
-                "error",
-            )
-
-            return render_template(
-                "availability_check.html",
-                resources=resources,
-                resource_types=ResourceType,
-                availability_results=[],
-            )
-
-        # ----------------------------------------------------
-        # Date/time
-        # ----------------------------------------------------
-
-        if not start_value or not end_value:
-
-            flash(
-                "Start and end times are required.",
-                "error",
-            )
-
-            return render_template(
-                "availability_check.html",
-                resources=resources,
-                resource_types=ResourceType,
-                availability_results=[],
-            )
-
-        try:
-
-            start_dt = datetime.fromisoformat(
-                start_value
-            )
-
-            end_dt = datetime.fromisoformat(
-                end_value
-            )
-
-        except ValueError:
-
-            flash(
-                "Please enter valid start and end dates.",
-                "error",
-            )
-
-            return render_template(
-                "availability_check.html",
-                resources=resources,
-                resource_types=ResourceType,
-                availability_results=[],
-            )
-
-        if end_dt <= start_dt:
-
-            flash(
-                "End time must be after start time.",
-                "error",
-            )
-
-            return render_template(
-                "availability_check.html",
-                resources=resources,
-                resource_types=ResourceType,
-                availability_results=[],
-            )
-
-        # ----------------------------------------------------
-        # Attendance
-        # ----------------------------------------------------
-
-        attendance_value = 0
-
-        if attendance:
-
-            try:
-
-                attendance_value = int(
-                    attendance
-                )
-
-            except ValueError:
-
-                flash(
-                    "Attendance must be a valid number.",
-                    "error",
-                )
-
-                return render_template(
-                    "availability_check.html",
-                    resources=resources,
-                    resource_types=ResourceType,
-                    availability_results=[],
-                )
-
-            if attendance_value < 0:
-
-                flash(
-                    "Attendance cannot be negative.",
-                    "error",
-                )
-
-                return render_template(
-                    "availability_check.html",
-                    resources=resources,
-                    resource_types=ResourceType,
-                    availability_results=[],
-                )
-
-        # ----------------------------------------------------
-        # Find resources of requested type
-        # ----------------------------------------------------
-
-        matching_resources = (
-            Resource.query
-            .filter(
-                Resource.type == resource_type_enum,
-                Resource.is_active.is_(True),
-            )
-            .order_by(
-                Resource.name.asc()
-            )
-            .all()
-        )
-
-        # ----------------------------------------------------
-        # Check each resource
-        # ----------------------------------------------------
-
-        for resource in matching_resources:
-
-            # ------------------------------------------------
-            # Capacity check
-            # ------------------------------------------------
-
-            if (
-                resource.capacity is not None
-                and resource.capacity < attendance_value
-            ):
-
-                availability_results.append(
-                    {
-                        "resource": resource,
-                        "available": False,
-                        "reason": (
-                            f"Capacity {resource.capacity} "
-                            f"is less than requested "
-                            f"attendance "
-                            f"{attendance_value}."
-                        ),
-                        "conflicts": [],
-                    }
-                )
-
-                continue
-
-            # ------------------------------------------------
-            # Booking conflict
-            # ------------------------------------------------
-
-            conflicts = find_conflicts(
-                resource=resource,
-                start_dt=start_dt,
-                end_dt=end_dt,
-                session=db.session,
-            )
-
-            if conflicts:
-
-                availability_results.append(
-                    {
-                        "resource": resource,
-                        "available": False,
-                        "reason": (
-                            "Resource is already booked "
-                            "during the requested time."
-                        ),
-                        "conflicts": conflicts,
-                    }
-                )
-
-                continue
-
-            # ------------------------------------------------
-            # Available
-            # ------------------------------------------------
-
-            availability_results.append(
-                {
-                    "resource": resource,
-                    "available": True,
-                    "reason": (
-                        "Resource is available."
-                    ),
-                    "conflicts": [],
-                }
-            )
-
-    return render_template(
-        "availability_check.html",
-        resources=resources,
-        resource_types=ResourceType,
-        availability_results=availability_results,
     )
