@@ -12,7 +12,7 @@
 
 <div class="max-w-3xl mx-auto">
 
-    <!-- Header -->
+    <!-- HEADER -->
 
     <div class="mb-8">
 
@@ -34,17 +34,19 @@
         </h1>
 
         <p class="mt-2 text-gray-600">
+
             {% if event %}
                 Update the details of this college event.
             {% else %}
                 Enter the details of the college event.
             {% endif %}
+
         </p>
 
     </div>
 
 
-    <!-- Flash messages -->
+    <!-- FLASH MESSAGES -->
 
     {% with messages = get_flashed_messages(
         with_categories=true
@@ -66,7 +68,9 @@
                             border border-red-200
                         {% endif %}"
                     >
+
                         {{ message }}
+
                     </div>
 
                 {% endfor %}
@@ -78,20 +82,25 @@
     {% endwith %}
 
 
-    <!-- Form -->
+    <!-- FORM -->
 
     <form
         method="POST"
         action="{% if event %}
-                    {{ url_for('events.edit_event', event_id=event.id) }}
+                    {{ url_for(
+                        'events.edit_event',
+                        event_id=event.id
+                    ) }}
                 {% else %}
-                    {{ url_for('events.create_event') }}
+                    {{ url_for(
+                        'events.create_event'
+                    ) }}
                 {% endif %}"
         class="bg-white border border-gray-200
                rounded-xl p-6 space-y-6"
     >
 
-        <!-- Event Name -->
+        <!-- EVENT NAME -->
 
         <div>
 
@@ -119,7 +128,7 @@
         </div>
 
 
-        <!-- Organizer -->
+        <!-- ORGANIZER -->
 
         <div>
 
@@ -147,7 +156,7 @@
         </div>
 
 
-        <!-- Attendance -->
+        <!-- ATTENDANCE -->
 
         <div>
 
@@ -164,7 +173,10 @@
                 name="expected_attendance"
                 min="1"
                 required
-                value="{{ form_data.get('expected_attendance', '') }}"
+                value="{{ form_data.get(
+                    'expected_attendance',
+                    ''
+                ) }}"
                 placeholder="e.g. 100"
                 class="mt-2 w-full px-4 py-3
                        border border-gray-300
@@ -176,7 +188,7 @@
         </div>
 
 
-        <!-- Date and Time -->
+        <!-- DATE AND TIME -->
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
@@ -194,7 +206,10 @@
                     id="start_dt"
                     name="start_dt"
                     required
-                    value="{{ form_data.get('start_dt', '') }}"
+                    value="{{ form_data.get(
+                        'start_dt',
+                        ''
+                    ) }}"
                     class="mt-2 w-full px-4 py-3
                            border border-gray-300
                            rounded-lg
@@ -219,7 +234,10 @@
                     id="end_dt"
                     name="end_dt"
                     required
-                    value="{{ form_data.get('end_dt', '') }}"
+                    value="{{ form_data.get(
+                        'end_dt',
+                        ''
+                    ) }}"
                     class="mt-2 w-full px-4 py-3
                            border border-gray-300
                            rounded-lg
@@ -232,7 +250,87 @@
         </div>
 
 
-        <!-- Information -->
+        <!-- STATUS -->
+
+        {% if event %}
+
+            <div>
+
+                <label
+                    for="status"
+                    class="block text-sm font-medium text-gray-700"
+                >
+                    Event Status
+                </label>
+
+                <select
+                    id="status"
+                    name="status"
+                    class="mt-2 w-full px-4 py-3
+                           border border-gray-300
+                           rounded-lg bg-white
+                           focus:ring-2 focus:ring-blue-500
+                           focus:border-blue-500"
+                >
+
+                    {% for status in allowed_statuses %}
+
+                        <option
+                            value="{{ status.value }}"
+                            {% if form_data.get(
+                                'status',
+                                event.status.value
+                            ) == status.value %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ status.value.title() }}
+                        </option>
+
+                    {% endfor %}
+
+                </select>
+
+                <p class="mt-2 text-sm text-gray-500">
+
+                    Only valid status transitions are available.
+
+                </p>
+
+            </div>
+
+        {% else %}
+
+            <div
+                class="bg-gray-50
+                       border border-gray-200
+                       rounded-lg p-4"
+            >
+
+                <div class="text-sm font-medium text-gray-700">
+
+                    Initial Status
+
+                </div>
+
+                <div class="mt-1 text-gray-900 font-semibold">
+
+                    Draft
+
+                </div>
+
+                <p class="mt-1 text-sm text-gray-500">
+
+                    New events start in Draft status.
+
+                </p>
+
+            </div>
+
+        {% endif %}
+
+
+        <!-- INFORMATION -->
 
         <div
             class="bg-blue-50 border border-blue-200
@@ -243,8 +341,9 @@
 
                 {% if event %}
 
-                    Editing an event does not automatically change
-                    its approval status.
+                    The system only allows valid event status
+                    transitions. Cancelled and completed events
+                    cannot be edited.
 
                 {% else %}
 
@@ -258,7 +357,7 @@
         </div>
 
 
-        <!-- Buttons -->
+        <!-- BUTTONS -->
 
         <div
             class="flex justify-end gap-3
@@ -300,36 +399,86 @@
 </div>
 
 
-<!-- Basic JavaScript validation -->
+<!-- ============================================================
+     CLIENT-SIDE VALIDATION
+============================================================= -->
 
 <script>
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
 
-    const form = document.querySelector("form");
-    const startInput = document.getElementById("start_dt");
-    const endInput = document.getElementById("end_dt");
+        const form = document.querySelector("form");
 
-    form.addEventListener("submit", function (event) {
+        const startInput =
+            document.getElementById("start_dt");
 
-        if (
-            startInput.value &&
-            endInput.value &&
-            endInput.value <= startInput.value
-        ) {
+        const endInput =
+            document.getElementById("end_dt");
 
-            event.preventDefault();
-
-            alert(
-                "End date/time must be after start date/time."
+        const attendanceInput =
+            document.getElementById(
+                "expected_attendance"
             );
 
-            endInput.focus();
+
+        if (!form) {
+            return;
         }
 
-    });
 
-});
+        form.addEventListener(
+            "submit",
+            function (event) {
+
+                // --------------------------------------------
+                // Attendance
+                // --------------------------------------------
+
+                if (
+                    attendanceInput.value &&
+                    Number(attendanceInput.value) <= 0
+                ) {
+
+                    event.preventDefault();
+
+                    alert(
+                        "Expected attendance must be greater than zero."
+                    );
+
+                    attendanceInput.focus();
+
+                    return;
+                }
+
+
+                // --------------------------------------------
+                // Date/time
+                // --------------------------------------------
+
+                if (
+                    startInput.value &&
+                    endInput.value &&
+                    endInput.value <= startInput.value
+                ) {
+
+                    event.preventDefault();
+
+                    alert(
+                        "End date/time must be after start date/time."
+                    );
+
+                    endInput.focus();
+
+                    return;
+                }
+
+            }
+        );
+
+    }
+);
 
 </script>
 

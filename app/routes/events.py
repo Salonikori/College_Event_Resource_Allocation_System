@@ -10,6 +10,7 @@ from flask import (
 )
 
 from app import db
+
 from app.models import (
     Allocation,
     AllocationStatus,
@@ -17,11 +18,17 @@ from app.models import (
     EventStatus,
 )
 
+from app.services.status import (
+    InvalidStatusTransition,
+    get_allowed_event_statuses,
+    transition_event_status,
+)
+
 
 events_bp = Blueprint(
     "events",
     __name__,
-    url_prefix="/events"
+    url_prefix="/events",
 )
 
 
@@ -35,30 +42,31 @@ def parse_event_form():
 
     Returns:
         (data, error)
-
-    data contains:
-        name
-        organizer
-        expected_attendance
-        start_dt
-        end_dt
     """
 
-    name = request.form.get("name", "").strip()
-    organizer = request.form.get("organizer", "").strip()
+    name = request.form.get(
+        "name",
+        "",
+    ).strip()
+
+    organizer = request.form.get(
+        "organizer",
+        "",
+    ).strip()
+
     attendance = request.form.get(
         "expected_attendance",
-        ""
+        "",
     ).strip()
 
     start_value = request.form.get(
         "start_dt",
-        ""
+        "",
     ).strip()
 
     end_value = request.form.get(
         "end_dt",
-        ""
+        "",
     ).strip()
 
     # --------------------------------------------------------
@@ -84,7 +92,7 @@ def parse_event_form():
     try:
         expected_attendance = int(attendance)
 
-    except ValueError:
+    except (ValueError, TypeError):
         return None, (
             "Expected attendance must be a valid number."
         )
@@ -126,6 +134,29 @@ def parse_event_form():
     }, None
 
 
+def get_event_form_data(event):
+    """
+    Convert an Event object into values suitable for
+    datetime-local inputs.
+    """
+
+    return {
+        "name": event.name,
+        "organizer": event.organizer,
+        "expected_attendance": event.expected_attendance,
+
+        "start_dt": event.start_dt.strftime(
+            "%Y-%m-%dT%H:%M"
+        ),
+
+        "end_dt": event.end_dt.strftime(
+            "%Y-%m-%dT%H:%M"
+        ),
+
+        "status": event.status.value,
+    }
+
+
 # ============================================================
 # LIST EVENTS + FILTER
 # ============================================================
@@ -135,23 +166,23 @@ def events():
 
     status_filter = request.args.get(
         "status",
-        ""
+        "",
     ).strip()
 
     from_date = request.args.get(
         "from_date",
-        ""
+        "",
     ).strip()
 
     to_date = request.args.get(
         "to_date",
-        ""
+        "",
     ).strip()
 
     query = Event.query
 
     # --------------------------------------------------------
-    # Status filter
+    # STATUS FILTER
     # --------------------------------------------------------
 
     if status_filter:
@@ -169,43 +200,52 @@ def events():
 
             flash(
                 "Invalid event status filter.",
-                "error"
+                "error",
             )
 
     # --------------------------------------------------------
-    # From date
+    # FROM DATE
+    #
+    # Include events that overlap the selected date.
+    #
+    # Event must end on/after from_date.
     # --------------------------------------------------------
 
     if from_date:
 
         try:
-            from_datetime = datetime.fromisoformat(
-                from_date
+            from_datetime = datetime.strptime(
+                from_date,
+                "%Y-%m-%d",
             )
 
             query = query.filter(
-                Event.start_dt >= from_datetime
+                Event.end_dt >= from_datetime
             )
 
         except ValueError:
 
             flash(
                 "Invalid from date.",
-                "error"
+                "error",
             )
 
     # --------------------------------------------------------
-    # To date
+    # TO DATE
+    #
+    # Include the entire selected day.
+    #
+    # Event must start on/before to_date.
     # --------------------------------------------------------
 
     if to_date:
 
         try:
-            to_datetime = datetime.fromisoformat(
-                to_date
+            to_datetime = datetime.strptime(
+                to_date,
+                "%Y-%m-%d",
             )
 
-            # Include the entire selected day.
             to_datetime = to_datetime.replace(
                 hour=23,
                 minute=59,
@@ -221,12 +261,45 @@ def events():
 
             flash(
                 "Invalid to date.",
-                "error"
+                "error",
             )
 
-    events = query.order_by(
-        Event.start_dt.asc()
-    ).all()
+    # --------------------------------------------------------
+    # INVALID DATE RANGE
+    # --------------------------------------------------------
+
+    if from_date and to_date:
+
+        try:
+            from_check = datetime.strptime(
+                from_date,
+                "%Y-%m-%d",
+            )
+
+            to_check = datetime.strptime(
+                to_date,
+                "%Y-%m-%d",
+            )
+
+            if from_check > to_check:
+
+                flash(
+                    "From date cannot be after to date.",
+                    "error",
+                )
+
+                query = Event.query
+
+        except ValueError:
+            pass
+
+    events = (
+        query
+        .order_by(
+            Event.start_dt.asc()
+        )
+        .all()
+    )
 
     return render_template(
         "events.html",
@@ -244,7 +317,7 @@ def events():
 
 @events_bp.route(
     "/create",
-    methods=["GET", "POST"]
+    methods=["GET", "POST"],
 )
 def create_event():
 
@@ -256,13 +329,14 @@ def create_event():
 
             flash(
                 error,
-                "error"
+                "error",
             )
 
             return render_template(
                 "event_form.html",
                 event=None,
                 form_data=request.form,
+                allowed_statuses=[],
             )
 
         event = Event(
@@ -281,7 +355,7 @@ def create_event():
 
         flash(
             "Event created successfully.",
-            "success"
+            "success",
         )
 
         return redirect(
@@ -292,6 +366,7 @@ def create_event():
         "event_form.html",
         event=None,
         form_data={},
+        allowed_statuses=[],
     )
 
 
@@ -301,20 +376,20 @@ def create_event():
 
 @events_bp.route(
     "/<int:event_id>/edit",
-    methods=["GET", "POST"]
+    methods=["GET", "POST"],
 )
 def edit_event(event_id):
 
     event = db.session.get(
         Event,
-        event_id
+        event_id,
     )
 
     if event is None:
 
         flash(
             "Event not found.",
-            "error"
+            "error",
         )
 
         return redirect(
@@ -322,7 +397,7 @@ def edit_event(event_id):
         )
 
     # --------------------------------------------------------
-    # Prevent editing cancelled/completed events
+    # Cancelled/completed events cannot be edited.
     # --------------------------------------------------------
 
     if event.status in (
@@ -332,12 +407,33 @@ def edit_event(event_id):
 
         flash(
             "Cancelled or completed events cannot be edited.",
-            "error"
+            "error",
         )
 
         return redirect(
             url_for("events.events")
         )
+
+    # --------------------------------------------------------
+    # Allowed status options
+    #
+    # Current status is always allowed to remain unchanged.
+    # --------------------------------------------------------
+
+    allowed_statuses = [
+        event.status
+    ]
+
+    allowed_statuses.extend(
+        get_allowed_event_statuses(
+            event.status
+        )
+    )
+
+    # Remove duplicates while preserving order.
+    allowed_statuses = list(
+        dict.fromkeys(allowed_statuses)
+    )
 
     # --------------------------------------------------------
     # POST
@@ -351,32 +447,113 @@ def edit_event(event_id):
 
             flash(
                 error,
-                "error"
+                "error",
             )
 
             return render_template(
                 "event_form.html",
                 event=event,
                 form_data=request.form,
+                allowed_statuses=allowed_statuses,
+            )
+
+        requested_status = request.form.get(
+            "status",
+            event.status.value,
+        ).strip()
+
+        try:
+
+            new_status = EventStatus(
+                requested_status
+            )
+
+        except ValueError:
+
+            flash(
+                "Invalid event status selected.",
+                "error",
+            )
+
+            return render_template(
+                "event_form.html",
+                event=event,
+                form_data=request.form,
+                allowed_statuses=allowed_statuses,
             )
 
         # ----------------------------------------------------
-        # Update event
+        # Validate status transition
+        # ----------------------------------------------------
+
+        if new_status != event.status:
+
+            try:
+
+                event.status = transition_event_status(
+                    event.status,
+                    new_status,
+                )
+
+            except InvalidStatusTransition as error:
+
+                flash(
+                    str(error),
+                    "error",
+                )
+
+                return render_template(
+                    "event_form.html",
+                    event=event,
+                    form_data=request.form,
+                    allowed_statuses=allowed_statuses,
+                )
+
+        # ----------------------------------------------------
+        # Update fields
         # ----------------------------------------------------
 
         event.name = data["name"]
-        event.organizer = data["organizer"]
+
+        event.organizer = data[
+            "organizer"
+        ]
+
         event.expected_attendance = data[
             "expected_attendance"
         ]
-        event.start_dt = data["start_dt"]
-        event.end_dt = data["end_dt"]
 
-        db.session.commit()
+        event.start_dt = data[
+            "start_dt"
+        ]
+
+        event.end_dt = data[
+            "end_dt"
+        ]
+
+        try:
+
+            db.session.commit()
+
+        except Exception:
+
+            db.session.rollback()
+
+            flash(
+                "Unable to update the event.",
+                "error",
+            )
+
+            return render_template(
+                "event_form.html",
+                event=event,
+                form_data=request.form,
+                allowed_statuses=allowed_statuses,
+            )
 
         flash(
             "Event updated successfully.",
-            "success"
+            "success",
         )
 
         return redirect(
@@ -387,22 +564,15 @@ def edit_event(event_id):
     # GET
     # --------------------------------------------------------
 
-    form_data = {
-        "name": event.name,
-        "organizer": event.organizer,
-        "expected_attendance": event.expected_attendance,
-        "start_dt": event.start_dt.strftime(
-            "%Y-%m-%dT%H:%M"
-        ),
-        "end_dt": event.end_dt.strftime(
-            "%Y-%m-%dT%H:%M"
-        ),
-    }
+    form_data = get_event_form_data(
+        event
+    )
 
     return render_template(
         "event_form.html",
         event=event,
         form_data=form_data,
+        allowed_statuses=allowed_statuses,
     )
 
 
@@ -412,20 +582,20 @@ def edit_event(event_id):
 
 @events_bp.route(
     "/<int:event_id>/cancel",
-    methods=["POST"]
+    methods=["POST"],
 )
 def cancel_event(event_id):
 
     event = db.session.get(
         Event,
-        event_id
+        event_id,
     )
 
     if event is None:
 
         flash(
             "Event not found.",
-            "error"
+            "error",
         )
 
         return redirect(
@@ -440,7 +610,7 @@ def cancel_event(event_id):
 
         flash(
             "Event is already cancelled.",
-            "info"
+            "info",
         )
 
         return redirect(
@@ -455,48 +625,61 @@ def cancel_event(event_id):
 
         flash(
             "Completed events cannot be cancelled.",
-            "error"
+            "error",
         )
 
         return redirect(
             url_for("events.events")
         )
 
-    # --------------------------------------------------------
-    # Cancel event
-    # --------------------------------------------------------
+    try:
 
-    event.status = EventStatus.CANCELLED
+        event.status = EventStatus.CANCELLED
 
-    # --------------------------------------------------------
-    # Release active allocations
-    # --------------------------------------------------------
+        # ----------------------------------------------------
+        # Release active allocations.
+        #
+        # Historical allocation rows are retained.
+        # ----------------------------------------------------
 
-    allocations = (
-        Allocation.query
-        .filter(
-            Allocation.event_id == event.id,
-            Allocation.status.in_(
-                [
-                    AllocationStatus.ALLOCATED,
-                    AllocationStatus.APPROVED,
-                ]
-            ),
-        )
-        .all()
-    )
-
-    for allocation in allocations:
-
-        allocation.status = (
-            AllocationStatus.CANCELLED
+        allocations = (
+            Allocation.query
+            .filter(
+                Allocation.event_id == event.id,
+                Allocation.status.in_(
+                    [
+                        AllocationStatus.ALLOCATED,
+                        AllocationStatus.APPROVED,
+                    ]
+                ),
+            )
+            .all()
         )
 
-    db.session.commit()
+        for allocation in allocations:
+
+            allocation.status = (
+                AllocationStatus.CANCELLED
+            )
+
+        db.session.commit()
+
+    except Exception:
+
+        db.session.rollback()
+
+        flash(
+            "Unable to cancel the event.",
+            "error",
+        )
+
+        return redirect(
+            url_for("events.events")
+        )
 
     flash(
         "Event cancelled and allocated resources released.",
-        "success"
+        "success",
     )
 
     return redirect(
