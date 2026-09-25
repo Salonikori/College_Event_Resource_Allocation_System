@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Waitlist — ResourceHub{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto">
+  <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
+    <div><p class="text-sm font-semibold text-blue-600 uppercase tracking-wide">Demand queue</p><h1 class="text-3xl font-bold mt-1">Resource Waitlist</h1><p class="text-gray-600 mt-2">Requests here are retried automatically when a matching allocation is released.</p></div>
+    <a href="{{ url_for('requests.create_request') }}" class="px-5 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700">+ New Request</a>
+  </div>
+  {% if entries %}
+  <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+    <div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr>
+      <th class="px-5 py-4 text-left text-xs uppercase text-gray-500">Request</th><th class="px-5 py-4 text-left text-xs uppercase text-gray-500">Event</th><th class="px-5 py-4 text-left text-xs uppercase text-gray-500">Resource</th><th class="px-5 py-4 text-left text-xs uppercase text-gray-500">Requested Time</th><th class="px-5 py-4 text-left text-xs uppercase text-gray-500">Status</th>
+    </tr></thead><tbody class="divide-y divide-gray-100">
+    {% for entry in entries %}<tr class="hover:bg-gray-50"><td class="px-5 py-4 font-semibold">#{{ entry.request_id }}</td><td class="px-5 py-4">{{ entry.request.event.name if entry.request.event else '—' }}</td><td class="px-5 py-4">{{ entry.resource.name if entry.resource else entry.resource_type.value.replace('_',' ').title() }}</td><td class="px-5 py-4 text-sm">{{ entry.request.requested_start.strftime('%d %b %Y, %I:%M %p') }} – {{ entry.request.requested_end.strftime('%I:%M %p') }}</td><td class="px-5 py-4"><span class="status-badge status-{{ entry.status.value|lower }}">{{ entry.status.value.title() }}</span></td></tr>{% endfor %}
+    </tbody></table></div>
+  </div>
+  {% else %}
+  <div class="bg-white border border-dashed border-gray-300 rounded-2xl p-12 text-center"><div class="text-4xl">✓</div><h2 class="text-xl font-bold mt-3">Your waitlist is clear</h2><p class="text-gray-500 mt-2">No requests are currently waiting for a resource.</p><a href="{{ url_for('requests.create_request') }}" class="inline-flex mt-5 px-5 py-3 rounded-xl bg-blue-600 text-white font-semibold">Create a request</a></div>
+  {% endif %}
+</div>
+{% endblock %}
