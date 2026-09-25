@@ -2,12 +2,15 @@ from datetime import datetime
 
 from flask import (
     Blueprint,
+    abort,
     flash,
     redirect,
     render_template,
     request,
     url_for,
 )
+
+from flask_login import current_user
 
 from app import db
 
@@ -16,7 +19,11 @@ from app.models import (
     AllocationStatus,
     Event,
     EventStatus,
+    RequestStatus,
+    WaitlistStatus,
 )
+
+from app.services.waitlist import promote_waitlisted_requests
 
 from app.services.status import (
     InvalidStatusTransition,
@@ -30,6 +37,22 @@ events_bp = Blueprint(
     __name__,
     url_prefix="/events",
 )
+
+
+# ============================================================
+# OWNERSHIP HELPER
+#
+# Admins can see/manage every event. Organizers can only
+# see and manage the events they created themselves.
+# ============================================================
+
+def _assert_can_manage(event):
+
+    if current_user.is_admin():
+        return
+
+    if event.organizer_id != current_user.id:
+        abort(403)
 
 
 # ============================================================
@@ -182,6 +205,19 @@ def events():
     query = Event.query
 
     # --------------------------------------------------------
+    # OWNERSHIP SCOPE
+    #
+    # Organizers only ever see their own events. Admins see
+    # every event in the system.
+    # --------------------------------------------------------
+
+    if not current_user.is_admin():
+
+        query = query.filter(
+            Event.organizer_id == current_user.id
+        )
+
+    # --------------------------------------------------------
     # STATUS FILTER
     # --------------------------------------------------------
 
@@ -290,6 +326,13 @@ def events():
 
                 query = Event.query
 
+                if not current_user.is_admin():
+
+                    query = query.filter(
+                        Event.organizer_id
+                        == current_user.id
+                    )
+
         except ValueError:
             pass
 
@@ -342,6 +385,7 @@ def create_event():
         event = Event(
             name=data["name"],
             organizer=data["organizer"],
+            organizer_id=current_user.id,
             expected_attendance=data[
                 "expected_attendance"
             ],
@@ -395,6 +439,8 @@ def edit_event(event_id):
         return redirect(
             url_for("events.events")
         )
+
+    _assert_can_manage(event)
 
     # --------------------------------------------------------
     # Cancelled/completed events cannot be edited.
@@ -510,26 +556,58 @@ def edit_event(event_id):
                 )
 
         # ----------------------------------------------------
+        # Protect existing allocations from schedule drift.
+        #
+        # Once an event has active allocations, changing its
+        # schedule or attendance without reallocating those
+        # resources would leave the database inconsistent.
+        # Safe metadata/status edits remain available.
+        # ----------------------------------------------------
+
+        active_allocations = (
+            Allocation.query
+            .filter(
+                Allocation.event_id == event.id,
+                Allocation.status.in_(
+                    [
+                        AllocationStatus.ALLOCATED,
+                        AllocationStatus.APPROVED,
+                    ]
+                ),
+            )
+            .count()
+        )
+
+        schedule_changed = (
+            data["start_dt"] != event.start_dt
+            or data["end_dt"] != event.end_dt
+            or data["expected_attendance"] != event.expected_attendance
+        )
+
+        if active_allocations and schedule_changed:
+            db.session.rollback()
+            flash(
+                "This event has active resource allocations. "
+                "Cancel/release those allocations before changing "
+                "the event schedule or expected attendance.",
+                "error",
+            )
+            return render_template(
+                "event_form.html",
+                event=event,
+                form_data=request.form,
+                allowed_statuses=allowed_statuses,
+            )
+
+        # ----------------------------------------------------
         # Update fields
         # ----------------------------------------------------
 
         event.name = data["name"]
-
-        event.organizer = data[
-            "organizer"
-        ]
-
-        event.expected_attendance = data[
-            "expected_attendance"
-        ]
-
-        event.start_dt = data[
-            "start_dt"
-        ]
-
-        event.end_dt = data[
-            "end_dt"
-        ]
+        event.organizer = data["organizer"]
+        event.expected_attendance = data["expected_attendance"]
+        event.start_dt = data["start_dt"]
+        event.end_dt = data["end_dt"]
 
         try:
 
@@ -602,6 +680,8 @@ def cancel_event(event_id):
             url_for("events.events")
         )
 
+    _assert_can_manage(event)
+
     # --------------------------------------------------------
     # Already cancelled
     # --------------------------------------------------------
@@ -656,13 +736,25 @@ def cancel_event(event_id):
             .all()
         )
 
+        released_resource_ids = []
         for allocation in allocations:
+            allocation.status = AllocationStatus.CANCELLED
+            released_resource_ids.append(allocation.resource_id)
 
-            allocation.status = (
-                AllocationStatus.CANCELLED
-            )
+        # Pending requests belonging to a cancelled event can never be
+        # fulfilled. Close them and their waitlist entries so they do not
+        # remain in the queue forever after the event is gone.
+        for resource_request in event.resource_requests:
+            if resource_request.status == RequestStatus.PENDING:
+                resource_request.status = RequestStatus.CANCELLED
+                for entry in resource_request.waitlist_entries:
+                    if entry.status == WaitlistStatus.WAITING:
+                        entry.status = WaitlistStatus.CANCELLED
 
         db.session.commit()
+        promoted = []
+        for resource_id in released_resource_ids:
+            promoted.extend(promote_waitlisted_requests(resource_id=resource_id))
 
     except Exception:
 
@@ -677,10 +769,10 @@ def cancel_event(event_id):
             url_for("events.events")
         )
 
-    flash(
-        "Event cancelled and allocated resources released.",
-        "success",
-    )
+    message = "Event cancelled and allocated resources released."
+    if promoted:
+        message += f" Auto-promoted waitlisted request(s): {', '.join(map(str, promoted))}."
+    flash(message, "success")
 
     return redirect(
         url_for("events.events")

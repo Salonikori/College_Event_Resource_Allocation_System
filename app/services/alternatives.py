@@ -440,10 +440,10 @@ def get_resource_alternatives(
 
     for resource in resources:
 
-        # ----------------------------------------------------
-        # Exclude requested resource
-        # ----------------------------------------------------
-
+        # If the request explicitly named a physical resource, an
+        # alternative must be a different physical resource as well as
+        # a different time. This keeps the alternative page consistent:
+        # "alternative" never silently means "the same resource".
         if (
             excluded_resource_id is not None
             and resource.id == excluded_resource_id

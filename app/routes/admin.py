@@ -9,18 +9,23 @@ from flask import (
 
 from app import db
 
+from app.decorators import admin_required
+
 from app.models import (
     Allocation,
     AllocationStatus,
     EventStatus,
     RequestStatus,
     ResourceRequest,
+    WaitlistStatus,
 )
 
 from app.services.booking import (
     AllocationError,
     allocate_request,
 )
+
+from app.services.waitlist import promote_waitlisted_requests
 
 from app.services.status import (
     InvalidStatusTransition,
@@ -33,6 +38,18 @@ admin_bp = Blueprint(
     __name__,
     url_prefix="/approvals",
 )
+
+
+# ============================================================
+# The entire Approvals area is admin-only: viewing pending
+# requests, approving/rejecting them, and cancelling
+# allocations are all administrative actions.
+# ============================================================
+
+@admin_bp.before_request
+@admin_required
+def _guard_admin_blueprint():
+    return None
 
 
 # ============================================================
@@ -500,6 +517,12 @@ def reject_request(request_id):
                 rejection_reason
             )
 
+        # A rejected request can never be promoted later. Close all
+        # active waitlist entries in the same transaction.
+        for entry in resource_request.waitlist_entries:
+            if entry.status == WaitlistStatus.WAITING:
+                entry.status = WaitlistStatus.CANCELLED
+
         db.session.commit()
 
     except InvalidStatusTransition as error:
@@ -633,6 +656,10 @@ def cancel_allocation(allocation_id):
         )
 
         db.session.commit()
+        promoted = promote_waitlisted_requests(
+            resource_id=allocation.resource_id,
+            resource_type=allocation.resource.type,
+        )
 
     except Exception:
 
@@ -647,15 +674,13 @@ def cancel_allocation(allocation_id):
             url_for("requests.requests")
         )
 
-    flash(
-        (
-            f"Allocation #{allocation.id} "
-            "cancelled successfully. "
-            "The resource is now available "
-            "for future bookings."
-        ),
-        "success",
+    message = (
+        f"Allocation #{allocation.id} cancelled successfully. "
+        "The resource is now available for future bookings."
     )
+    if promoted:
+        message += f" Auto-promoted waitlisted request(s): {', '.join(map(str, promoted))}."
+    flash(message, "success")
 
     return redirect(
         url_for("requests.requests")

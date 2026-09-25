@@ -9,7 +9,11 @@ from flask import (
 
 from app import db
 
+from app.decorators import admin_required
+
 from app.models import (
+    Allocation,
+    AllocationStatus,
     Resource,
     ResourceType,
 )
@@ -180,6 +184,7 @@ def resources():
     "/create",
     methods=["GET", "POST"],
 )
+@admin_required
 def create_resource():
 
     if request.method == "POST":
@@ -238,6 +243,7 @@ def create_resource():
     "/<int:resource_id>/edit",
     methods=["POST"],
 )
+@admin_required
 def edit_resource(resource_id):
 
     resource = db.session.get(
@@ -274,18 +280,45 @@ def edit_resource(resource_id):
         )
 
     # --------------------------------------------------------
+    # Protect active allocations from incompatible edits.
+    # Changing type/capacity while a resource is allocated can
+    # invalidate the suitability assumptions of an existing
+    # booking. Name and buffer can safely be changed.
+    # --------------------------------------------------------
+
+    active_allocations = (
+        Allocation.query
+        .filter(
+            Allocation.resource_id == resource.id,
+            Allocation.status.in_(
+                [
+                    AllocationStatus.ALLOCATED,
+                    AllocationStatus.APPROVED,
+                ]
+            ),
+        )
+        .count()
+    )
+
+    if active_allocations and (
+        data["type"] != resource.type
+        or data["capacity"] != resource.capacity
+    ):
+        flash(
+            "This resource has active allocations. Cancel/release "
+            "those allocations before changing its type or capacity.",
+            "error",
+        )
+        return redirect(url_for("resources.resources"))
+
+    # --------------------------------------------------------
     # Update existing resource.
     # --------------------------------------------------------
 
     resource.name = data["name"]
-
     resource.type = data["type"]
-
     resource.capacity = data["capacity"]
-
-    resource.buffer_minutes = (
-        data["buffer_minutes"]
-    )
+    resource.buffer_minutes = data["buffer_minutes"]
 
     try:
 
@@ -326,6 +359,7 @@ def edit_resource(resource_id):
     "/<int:resource_id>/activate",
     methods=["POST"],
 )
+@admin_required
 def activate_resource(resource_id):
 
     resource = db.session.get(
@@ -400,6 +434,7 @@ def activate_resource(resource_id):
     "/<int:resource_id>/deactivate",
     methods=["POST"],
 )
+@admin_required
 def deactivate_resource(resource_id):
 
     resource = db.session.get(
