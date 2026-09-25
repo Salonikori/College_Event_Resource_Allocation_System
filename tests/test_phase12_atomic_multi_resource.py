@@ -2,6 +2,7 @@ from datetime import datetime
 
 import pytest
 
+from tests.auth_helpers import login_as_admin
 from app import create_app, db
 
 from app.models import (
@@ -32,8 +33,9 @@ def app():
         db.drop_all()
         db.create_all()
 
-        yield app
+    yield app
 
+    with app.app_context():
         db.session.remove()
         db.drop_all()
 
@@ -550,7 +552,7 @@ def test_approval_failure_does_not_create_partial_allocations(
 
         target_id = target.id
 
-    client = app.test_client()
+    client = login_as_admin(app)
 
     response = client.post(
         f"/approvals/{target_id}/approve",

@@ -44,11 +44,23 @@ def app():
 
 
 @pytest.fixture
-def client(app):
+def client(app, admin_user):
     """
-    Flask test client.
+    Flask test client, logged in as an admin so existing
+    route-level tests keep working now that every page
+    requires authentication.
     """
-    return app.test_client()
+    test_client = app.test_client()
+
+    test_client.post(
+        "/auth/login",
+        data={
+            "email": "test-admin@resourcehub.edu",
+            "password": "password123",
+        },
+    )
+
+    return test_client
 
 
 @pytest.fixture

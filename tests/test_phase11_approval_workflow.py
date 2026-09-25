@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
+from tests.auth_helpers import login_as_admin
 from app import db
 from app.models import (
     Allocation,
@@ -129,7 +130,7 @@ def test_pending_request_is_approved_and_allocated(app):
         event_id
     )
 
-    client = app.test_client()
+    client = login_as_admin(app)
 
     response = client.post(
         f"/approvals/{request_id}/approve",
@@ -179,7 +180,7 @@ def test_pending_request_can_be_rejected(app):
         event_id
     )
 
-    client = app.test_client()
+    client = login_as_admin(app)
 
     response = client.post(
         f"/approvals/{request_id}/reject",
@@ -219,7 +220,7 @@ def test_rejection_requires_reason(app):
         event_id
     )
 
-    client = app.test_client()
+    client = login_as_admin(app)
 
     response = client.post(
         f"/approvals/{request_id}/reject",
@@ -264,7 +265,7 @@ def test_rejected_request_cannot_be_approved(app):
         status=RequestStatus.REJECTED
     )
 
-    client = app.test_client()
+    client = login_as_admin(app)
 
     response = client.post(
         f"/approvals/{request_id}/approve",
@@ -313,7 +314,7 @@ def test_cancelled_request_cannot_be_approved(app):
         status=RequestStatus.CANCELLED
     )
 
-    client = app.test_client()
+    client = login_as_admin(app)
 
     response = client.post(
         f"/approvals/{request_id}/approve",
@@ -364,7 +365,7 @@ def test_cancelled_event_cannot_be_approved(app):
         event_id
     )
 
-    client = app.test_client()
+    client = login_as_admin(app)
 
     response = client.post(
         f"/approvals/{request_id}/approve",
@@ -413,7 +414,7 @@ def test_invalid_quantity_cannot_be_approved(app):
         quantity=0
     )
 
-    client = app.test_client()
+    client = login_as_admin(app)
 
     response = client.post(
         f"/approvals/{request_id}/approve",
@@ -500,7 +501,7 @@ def test_unavailable_resource_keeps_request_pending(app):
         event_id
     )
 
-    client = app.test_client()
+    client = login_as_admin(app)
 
     response = client.post(
         f"/approvals/{request_id}/approve",
@@ -587,7 +588,7 @@ def test_multiple_resources_are_allocated(app):
 
         request_id = resource_request.id
 
-    client = app.test_client()
+    client = login_as_admin(app)
 
     response = client.post(
         f"/approvals/{request_id}/approve",

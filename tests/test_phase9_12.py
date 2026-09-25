@@ -28,13 +28,10 @@ from app.services.booking import (
 @pytest.fixture
 def app():
 
-    app = create_app(
-    )
-
-    app.config.update(
-        TESTING=True,
-        SQLALCHEMY_DATABASE_URI="sqlite:///:memory:",
-    )
+    app = create_app({
+        "TESTING": True,
+        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
+    })
 
     # Reinitialize is not required because create_app already
     # initializes db. Use the existing application context.
@@ -45,7 +42,9 @@ def app():
 
         db.create_all()
 
-        yield app
+    yield app
+
+    with app.app_context():
 
         db.session.remove()
 
@@ -53,9 +52,19 @@ def app():
 
 
 @pytest.fixture
-def client(app):
+def client(app, admin_user):
 
-    return app.test_client()
+    test_client = app.test_client()
+
+    test_client.post(
+        "/auth/login",
+        data={
+            "email": "test-admin@resourcehub.edu",
+            "password": "password123",
+        },
+    )
+
+    return test_client
 
 
 # ============================================================

@@ -1,3 +1,4 @@
+from tests.auth_helpers import login_as_admin
 from app import create_app, db
 from app.models import (
     Resource,
@@ -27,7 +28,7 @@ def test_create_resource():
 
     app = setup_app()
 
-    client = app.test_client()
+    client = login_as_admin(app)
 
     response = client.post(
         "/resources/create",
@@ -78,7 +79,7 @@ def test_edit_resource():
 
         resource_id = resource.id
 
-    client = app.test_client()
+    client = login_as_admin(app)
 
     response = client.post(
         f"/resources/{resource_id}/edit",
@@ -130,7 +131,7 @@ def test_edit_resource_type():
 
         resource_id = resource.id
 
-    client = app.test_client()
+    client = login_as_admin(app)
 
     response = client.post(
         f"/resources/{resource_id}/edit",
@@ -179,7 +180,7 @@ def test_deactivate_resource():
 
         resource_id = resource.id
 
-    client = app.test_client()
+    client = login_as_admin(app)
 
     response = client.post(
         f"/resources/{resource_id}/deactivate",
@@ -221,7 +222,7 @@ def test_activate_resource():
 
         resource_id = resource.id
 
-    client = app.test_client()
+    client = login_as_admin(app)
 
     response = client.post(
         f"/resources/{resource_id}/activate",
@@ -248,7 +249,7 @@ def test_invalid_resource_type():
 
     app = setup_app()
 
-    client = app.test_client()
+    client = login_as_admin(app)
 
     response = client.post(
         "/resources/create",
@@ -280,7 +281,7 @@ def test_negative_capacity():
 
     app = setup_app()
 
-    client = app.test_client()
+    client = login_as_admin(app)
 
     response = client.post(
         "/resources/create",
@@ -312,7 +313,7 @@ def test_negative_buffer():
 
     app = setup_app()
 
-    client = app.test_client()
+    client = login_as_admin(app)
 
     response = client.post(
         "/resources/create",
@@ -344,7 +345,7 @@ def test_edit_nonexistent_resource():
 
     app = setup_app()
 
-    client = app.test_client()
+    client = login_as_admin(app)
 
     response = client.post(
         "/resources/99999/edit",
@@ -368,7 +369,7 @@ def test_activate_nonexistent_resource():
 
     app = setup_app()
 
-    client = app.test_client()
+    client = login_as_admin(app)
 
     response = client.post(
         "/resources/99999/activate",
@@ -386,7 +387,7 @@ def test_deactivate_nonexistent_resource():
 
     app = setup_app()
 
-    client = app.test_client()
+    client = login_as_admin(app)
 
     response = client.post(
         "/resources/99999/deactivate",

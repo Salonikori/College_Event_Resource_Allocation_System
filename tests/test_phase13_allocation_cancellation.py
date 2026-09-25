@@ -2,6 +2,7 @@ from datetime import datetime
 
 import pytest
 
+from tests.auth_helpers import login_as_admin
 from app import create_app, db
 
 from app.models import (
@@ -32,8 +33,9 @@ def app():
         db.drop_all()
         db.create_all()
 
-        yield app
+    yield app
 
+    with app.app_context():
         db.session.remove()
         db.drop_all()
 
@@ -187,7 +189,7 @@ def test_cancel_allocation_keeps_history(
 
         allocation_id = allocation.id
 
-    client = app.test_client()
+    client = login_as_admin(app)
 
     response = client.post(
         (
@@ -404,7 +406,7 @@ def test_cancel_route_does_not_delete_allocation(
 
         allocation_id = allocation.id
 
-    client = app.test_client()
+    client = login_as_admin(app)
 
     response = client.post(
         (
