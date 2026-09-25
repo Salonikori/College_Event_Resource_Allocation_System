@@ -1,181 +1,63 @@
 {% extends "base.html" %}
-
-{% block title %}
-Dashboard — ResourceHub
-{% endblock %}
-
-
+{% block title %}Dashboard — ResourceHub{% endblock %}
 {% block content %}
-
-<!-- ========================================================= -->
-<!-- HEADER -->
-<!-- ========================================================= -->
-
 <div class="mb-8">
-
-    <h1 class="text-3xl font-bold text-gray-900">
-        Resource Allocation Dashboard
-    </h1>
-
-    <p class="mt-2 text-gray-600">
-        Manage college events, resources and bookings
-        from one place.
-    </p>
-
+  <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+    <div>
+      <p class="text-sm font-semibold text-blue-600 uppercase tracking-wide">Resource intelligence</p>
+      <h1 class="text-3xl font-bold text-gray-900 mt-1">Resource Allocation Dashboard</h1>
+      <p class="mt-2 text-gray-600">See utilization patterns, approval performance and current demand at a glance.</p>
+    </div>
+    <a href="{{ url_for('requests.create_request') }}" class="inline-flex items-center justify-center px-5 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition">+ New Request</a>
+  </div>
 </div>
 
-
-<!-- ========================================================= -->
-<!-- STAT CARDS -->
-<!-- ========================================================= -->
-
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-
-    <!-- Events -->
-
-    <div class="bg-white rounded-xl border border-gray-200 p-6">
-
-        <p class="text-sm text-gray-500">
-            Total Events
-        </p>
-
-        <p class="mt-2 text-3xl font-bold text-gray-900">
-            {{ total_events }}
-        </p>
-
-    </div>
-
-
-    <!-- Resources -->
-
-    <div class="bg-white rounded-xl border border-gray-200 p-6">
-
-        <p class="text-sm text-gray-500">
-            Total Resources
-        </p>
-
-        <p class="mt-2 text-3xl font-bold text-gray-900">
-            {{ total_resources }}
-        </p>
-
-    </div>
-
-
-    <!-- Pending Requests -->
-
-    <div class="bg-white rounded-xl border border-gray-200 p-6">
-
-        <p class="text-sm text-gray-500">
-            Pending Requests
-        </p>
-
-        <p class="mt-2 text-3xl font-bold text-gray-900">
-            {{ pending_requests }}
-        </p>
-
-    </div>
-
-
-    <!-- Allocations -->
-
-    <div class="bg-white rounded-xl border border-gray-200 p-6">
-
-        <p class="text-sm text-gray-500">
-            Active Allocations
-        </p>
-
-        <p class="mt-2 text-3xl font-bold text-gray-900">
-            {{ active_allocations }}
-        </p>
-
-    </div>
-
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+  <div class="bg-white rounded-2xl border border-gray-200 p-5"><p class="text-sm text-gray-500">Total Events</p><p class="mt-2 text-3xl font-bold">{{ total_events }}</p></div>
+  <div class="bg-white rounded-2xl border border-gray-200 p-5"><p class="text-sm text-gray-500">Active Resources</p><p class="mt-2 text-3xl font-bold">{{ total_resources }}</p></div>
+  <div class="bg-white rounded-2xl border border-gray-200 p-5"><p class="text-sm text-gray-500">Pending Requests</p><p class="mt-2 text-3xl font-bold">{{ pending_requests }}</p></div>
+  <div class="bg-white rounded-2xl border border-gray-200 p-5"><p class="text-sm text-gray-500">Active Allocations</p><p class="mt-2 text-3xl font-bold">{{ active_allocations }}</p></div>
+  <div class="bg-white rounded-2xl border border-gray-200 p-5"><p class="text-sm text-gray-500">Approval Rate</p><p class="mt-2 text-3xl font-bold">{{ approval_rate }}%</p><p class="text-xs text-gray-400 mt-1">{{ total_requests }} total requests</p></div>
 </div>
 
-
-<!-- ========================================================= -->
-<!-- QUICK ACTIONS -->
-<!-- ========================================================= -->
-
-<div class="mt-10">
-
-    <h2 class="text-xl font-semibold text-gray-900">
-        Quick Actions
-    </h2>
-
-
-    <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-
-
-        <!-- Manage Events -->
-
-        <a
-            href="/events"
-            class="bg-white border border-gray-200
-                   rounded-xl p-5
-                   hover:border-blue-400
-                   hover:shadow-sm
-                   transition"
-        >
-
-            <h3 class="font-semibold text-gray-900">
-                Manage Events
-            </h3>
-
-            <p class="mt-1 text-sm text-gray-500">
-                Create and manage college events.
-            </p>
-
-        </a>
-
-
-        <!-- Manage Resources -->
-
-        <a
-            href="/resources"
-            class="bg-white border border-gray-200
-                   rounded-xl p-5
-                   hover:border-blue-400
-                   hover:shadow-sm
-                   transition"
-        >
-
-            <h3 class="font-semibold text-gray-900">
-                Manage Resources
-            </h3>
-
-            <p class="mt-1 text-sm text-gray-500">
-                View halls, classrooms, equipment
-                and other resources.
-            </p>
-
-        </a>
-
-
-        <!-- New Resource Request -->
-
-        <a
-            href="/requests"
-            class="bg-white border border-gray-200
-                   rounded-xl p-5
-                   hover:border-blue-400
-                   hover:shadow-sm
-                   transition"
-        >
-
-            <h3 class="font-semibold text-gray-900">
-                New Resource Request
-            </h3>
-
-            <p class="mt-1 text-sm text-gray-500">
-                Request resources for an event.
-            </p>
-
-        </a>
-
+<div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <div class="bg-white rounded-2xl border border-gray-200 p-6">
+    <div class="flex items-center justify-between mb-5"><div><h2 class="text-lg font-bold">Most Booked Resources</h2><p class="text-sm text-gray-500">Allocation volume by resource</p></div><span class="text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700">Utilization</span></div>
+    <div class="h-72"><canvas id="resourceChart"></canvas></div>
+  </div>
+  <div class="bg-white rounded-2xl border border-gray-200 p-6">
+    <div class="flex items-center justify-between mb-5"><div><h2 class="text-lg font-bold">Busiest Days</h2><p class="text-sm text-gray-500">Bookings by day of week</p></div><span class="text-xs px-2.5 py-1 rounded-full bg-purple-50 text-purple-700">Demand</span></div>
+    <div class="h-72"><canvas id="dayChart"></canvas></div>
+  </div>
+  <div class="bg-white rounded-2xl border border-gray-200 p-6">
+    <div class="flex items-center justify-between mb-5"><div><h2 class="text-lg font-bold">Busiest Times</h2><p class="text-sm text-gray-500">Most common booking start times</p></div><span class="text-xs px-2.5 py-1 rounded-full bg-amber-50 text-amber-700">Peak hours</span></div>
+    <div class="h-72"><canvas id="timeChart"></canvas></div>
+  </div>
+  <div class="bg-white rounded-2xl border border-gray-200 p-6">
+    <div class="flex items-center justify-between mb-5"><div><h2 class="text-lg font-bold">Approval & Waitlist Health</h2><p class="text-sm text-gray-500">Workflow performance</p></div><span class="text-xs px-2.5 py-1 rounded-full bg-green-50 text-green-700">Live</span></div>
+    <div class="grid grid-cols-2 gap-4">
+      <div class="rounded-xl bg-gray-50 p-5"><p class="text-sm text-gray-500">Approval rate</p><p class="text-4xl font-bold mt-2">{{ approval_rate }}%</p><p class="text-xs text-gray-400 mt-2">Approved / all requests</p></div>
+      <div class="rounded-xl bg-gray-50 p-5"><p class="text-sm text-gray-500">On waitlist</p><p class="text-4xl font-bold mt-2">{{ waiting_count }}</p><p class="text-xs text-gray-400 mt-2">Waiting for availability</p></div>
     </div>
-
+    <a href="{{ url_for('requests.waitlist') }}" class="inline-flex mt-5 text-sm font-semibold text-blue-600 hover:text-blue-800">View waitlist →</a>
+  </div>
 </div>
 
-
+<div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+  <a href="{{ url_for('requests.create_request') }}" class="bg-white border border-gray-200 rounded-2xl p-5 hover:border-blue-400 hover:shadow-sm transition"><h3 class="font-semibold">Recurring Booking</h3><p class="text-sm text-gray-500 mt-1">Create weekly or biweekly requests with per-occurrence conflict checks.</p></a>
+  <a href="{{ url_for('availability.availability') }}" class="bg-white border border-gray-200 rounded-2xl p-5 hover:border-blue-400 hover:shadow-sm transition"><h3 class="font-semibold">Check Availability</h3><p class="text-sm text-gray-500 mt-1">Inspect a resource's schedule before requesting it.</p></a>
+  <a href="{{ url_for('requests.waitlist') }}" class="bg-white border border-gray-200 rounded-2xl p-5 hover:border-blue-400 hover:shadow-sm transition"><h3 class="font-semibold">Manage Waitlist</h3><p class="text-sm text-gray-500 mt-1">See requests waiting for released capacity.</p></a>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const makeChart = (id, type, labels, data, label) => {
+  const el = document.getElementById(id); if (!el) return;
+  new Chart(el, {type, data:{labels, datasets:[{label, data, borderWidth:2, borderRadius:8}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, ticks:{precision:0}}}}});
+};
+makeChart('resourceChart','bar',{{ most_booked_labels|tojson }},{{ most_booked_values|tojson }},'Bookings');
+makeChart('dayChart','bar',{{ busiest_days_labels|tojson }},{{ busiest_days_values|tojson }},'Bookings');
+makeChart('timeChart','line',{{ busiest_time_labels|tojson }},{{ busiest_time_values|tojson }},'Bookings');
+</script>
 {% endblock %}

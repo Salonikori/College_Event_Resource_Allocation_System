@@ -115,7 +115,14 @@
                                 <p class="text-sm text-gray-500">
 
                                     Event status:
-                                    {{ resource_request.event.status.value }}
+                                    <span class="status-badge
+                                        {% if resource_request.event.status.value == 'APPROVED' %}bg-green-100 text-green-700
+                                        {% elif resource_request.event.status.value == 'PENDING' %}bg-amber-100 text-amber-700
+                                        {% elif resource_request.event.status.value == 'REJECTED' %}bg-red-100 text-red-700
+                                        {% elif resource_request.event.status.value == 'CANCELLED' %}bg-gray-100 text-gray-600
+                                        {% else %}bg-blue-100 text-blue-700{% endif %}">
+                                        {{ resource_request.event.status.value.title() }}
+                                    </span>
 
                                 </p>
 
